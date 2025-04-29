@@ -1,7 +1,6 @@
 {
   "scripts": {
-    "start": "node backend/server.js",
-    "install": "npm install"
+    "start": "node backend/server.js"
   },
   "dependencies": {
     "bcryptjs": "^3.0.2",
