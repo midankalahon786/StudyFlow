@@ -16,3 +16,5 @@ console.log('JWT_SECRET:', process.env.JWT_SECRET);
 
 const PORT = process.env.PORT || 5008; // 🛠️ Optional: read PORT from .env too
 app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+
+console.log('Server running at https://backend.r786.me'); // 🛠️ Optional: log the port number
