@@ -11,7 +11,8 @@ const register = async (req, res) => {
 
     // Ensure all fields are provided
     if (!username || !password || !role) {
-        return res.status(400).json({ error: 'Username, password, and role are required' });
+        console.log(res.status(406).json({ error: 'Username, password, and role are required' }));
+        return res.status(406).json({ error: 'Username, password, and role are required' });
     }
 
     try {
@@ -22,10 +23,10 @@ const register = async (req, res) => {
         const user = await User.create({ username, password: hashedPassword, role });
 
         // Respond with success message
-        res.status(201).json({ message: 'User registered successfully' });
+        console.log(res.status(201).json({ message: 'User registered successfully' }));
     } catch (err) {
         // Catch any errors and respond with a message
-        res.status(400).json({ error: err.message });
+        console.log(res.status(400).json({ error: err.message }));
     }
 };
 
@@ -35,7 +36,8 @@ const login = async (req, res) => {
 
     // Ensure username and password are provided
     if (!username || !password) {
-        return res.status(400).json({ error: 'Username and password are required' });
+        console.log(res.status(401).json({ error: 'Username and password are required' }));
+        return res.status(401).json({ error: 'Username and password are required' });
     }
 
     try {
@@ -43,6 +45,7 @@ const login = async (req, res) => {
         const user = await User.findOne({ where: { username } });
 
         if (!user) {
+            console.log(res.status(404).json({ error: 'User not found' }));
             return res.status(404).json({ error: 'User not found' });
         }
 
@@ -50,7 +53,8 @@ const login = async (req, res) => {
         const isMatch = await bcrypt.compare(password, user.password);
 
         if (!isMatch) {
-            return res.status(400).json({ error: 'Invalid credentials' });
+            console.log(res.status(410).json({ error: 'Invalid credentials' }));
+            return res.status(410).json({ error: 'Invalid credentials' });
         }
 
         // Generate a JWT token with a payload containing the user id and role
@@ -70,6 +74,7 @@ const login = async (req, res) => {
             }
         });
     } catch (err) {
+        console.error(res.status(500).json({ error: err.message }));
         res.status(500).json({ error: err.message });
     }
 };
