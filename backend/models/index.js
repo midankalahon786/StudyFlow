@@ -5,7 +5,13 @@ require('dotenv').config(); // Load environment variables from .env file
 const { PGDATABASE, PGUSER, PGPASSWORD, PGHOST } = process.env; // Destructure environment variables
 const sequelize = new Sequelize(PGDATABASE, PGUSER, PGPASSWORD, {
     host: PGHOST,
-    dialect: 'postgres'
+    dialect: 'postgres',
+    dialectOptions: {
+        ssl: {
+            require: true,
+            rejectUnauthorized: false, // For self-signed certificates
+        },
+    },
 });
 
 sequelize.sync(); // creates tables if not exist
