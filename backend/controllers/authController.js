@@ -3,34 +3,57 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 require('dotenv').config();
 
-
-
 // Register new user
 const register = async (req, res) => {
-    const { username, password, role } = req.body;
+    const { role } = req.body;
 
-    // Ensure all fields are provided
-    if (!username || !password || !role) {
-        console.log(res.status(406).json({ error: 'Username, password, and role are required' }));
-        return res.status(406).json({ error: 'Username, password, and role are required' });
+    // Ensure role is provided
+    if (!role) {
+        return res.status(400).json({ error: 'Role is required' });
     }
+
+    let userData;
+
+    if (role === 'student') {
+        const { username, password, firstName, lastName, email, phoneNumber, enrollmentNumber, department, semester, batchYear } = req.body;
+        // Ensure all required student fields are provided
+        if (!username || !password || !firstName || !lastName || !email || !phoneNumber || !enrollmentNumber || !department || !semester || !batchYear) {
+            return res.status(400).json({ error: 'Missing required fields for student registration' });
+        }
+        userData = { username, password, role, firstName, lastName, email, phoneNumber, enrollmentNumber, department, semester, batchYear };
+
+    } else if (role === 'teacher') {
+        const { username, password, firstName, lastName, email, phoneNumber, employeeId, department, designation, yearsOfExperience, qualifications } = req.body;
+        // Ensure all required teacher fields are provided
+        if (!username || !password || !firstName || !lastName || !email || !phoneNumber || !employeeId || !department || !designation || !yearsOfExperience || !qualifications) {
+            return res.status(400).json({ error: 'Missing required fields for teacher registration' });
+        }
+        userData = { username, password, role, firstName, lastName, email, phoneNumber, employeeId, department, designation, yearsOfExperience, qualifications };
+    } else {
+        return res.status(400).json({ error: 'Invalid role.  Must be "student" or "teacher".' });
+    }
+
 
     try {
         // Hash password before storing it in the database
-        const hashedPassword = await bcrypt.hash(password, 10);
+        const hashedPassword = await bcrypt.hash(userData.password, 10);
 
         // Create a new user in the database
-        const user = await User.create({ username, password: hashedPassword, role });
+        const user = await User.create({
+            ...userData,
+            password: hashedPassword, // Override the password with the hashed version
+        });
 
         // Respond with success message
-        console.log(res.status(201).json({ message: 'User registered successfully' }));
+        res.status(201).json({ message: 'User registered successfully' });
     } catch (err) {
         // Catch any errors and respond with a message
-        console.log(res.status(400).json({ error: err.message }));
+        console.error(res.status(400).json({ error: err.message }));
+        res.status(400).json({ error: err.message });
     }
 };
 
-// Login user and generate JWT token
+// Login user and generate JWT token (No changes needed here)
 const login = async (req, res) => {
     const { username, password } = req.body;
 
@@ -60,8 +83,8 @@ const login = async (req, res) => {
         // Generate a JWT token with a payload containing the user id and role
         const token = jwt.sign(
             { id: user.id, role: user.role }, // Payload
-            process.env.JWT_SECRET, // Secret key (loaded from environment variables)
-            { expiresIn: '1h' } // Token expiration time
+            process.env.JWT_SECRET,        // Secret key (loaded from environment variables)
+            { expiresIn: '1h' }            // Token expiration time
         );
 
         // Respond with the token and user details (excluding password)
