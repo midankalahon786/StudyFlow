@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
-const { register, login } = require('../controllers/authController');
+const authenticateToken = require('../middleware/authMiddleware');
+const { register, login, changePassword } = require('../controllers/authController');
 
 //  Define the student and teacher registration routes
 router.post('/register/student', async (req, res) => {
@@ -32,5 +33,15 @@ router.post('/login', async (req, res) => {
         res.status(500).json({ error: 'Internal server error during login' });
     }
 });
+
+router.post('/change-password', authenticateToken, async (req, res) => {
+    try {
+        await changePassword(req, res);
+    } catch (error) {
+        console.error('Error in /change-password route:', error);
+        res.status(500).json({ error: 'Internal server error during password change' });
+    }
+});
+
 
 module.exports = router;
