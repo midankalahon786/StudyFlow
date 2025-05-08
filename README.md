@@ -33,7 +33,7 @@ A full-featured Learning Management System built using **Jetpack Compose** for t
 ### Backend
 - Node.js
 - Express.js
-- MongoDB (Mongoose ODM)
+- PostgreSQL (Sequelize ORM)
 - JWT Authentication
 - Multer (File uploads)
 
@@ -58,7 +58,7 @@ A full-featured Learning Management System built using **Jetpack Compose** for t
 ### Prerequisites
 - Android Studio (for frontend)
 - Node.js and npm
-- MongoDB (local or cloud)
+- PostgreSQL (local or cloud)
 
 
 
