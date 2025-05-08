@@ -1,49 +1,72 @@
-# StudyFlow
+# 📚 Learning Management System (LMS) App
 
-📚 Learning Management System (LMS) App
-A full-featured Learning Management System built using Jetpack Compose for the Android frontend and Node.js for the backend. This app enables seamless interaction between students and teachers through course management, quiz participation, and performance tracking.
+A full-featured Learning Management System built using **Jetpack Compose** for the Android frontend and **Node.js** for the backend. This app enables seamless interaction between students and teachers through course management, quiz participation, and performance tracking.
 
-🚀 Features
-👩‍🏫 Teacher Features
-Create and manage courses
+---
 
-Upload course materials (PDFs, docs, etc.)
+## 🚀 Features
 
-Create quizzes with questions and options
+### 👩‍🏫 Teacher Features
+- Create and manage courses
+- Upload course materials (PDFs, docs, etc.)
+- Create quizzes with questions and options
+- View student quiz submissions and auto-generated reports
 
-View student quiz submissions and auto-generated reports
+### 👨‍🎓 Student Features
+- View available courses and enroll
+- Attempt quizzes assigned to enrolled courses
+- View quiz results and reports
+- Participate in course discussions (comment system)
 
-👨‍🎓 Student Features
-View available courses and enroll
+---
 
-Attempt quizzes assigned to enrolled courses
+## 🛠️ Tech Stack
 
-View quiz results and reports
+### Frontend (Android)
+- Jetpack Compose
+- MVVM Architecture
+- Retrofit (API integration)
+- Coroutines & Flow (asynchronous data handling)
+- Navigation Component
+- Kotlin
 
-Participate in course discussions (comment system)
+### Backend
+- Node.js
+- Express.js
+- MongoDB (Mongoose ODM)
+- JWT Authentication
+- Multer (File uploads)
 
-🛠️ Tech Stack
-Frontend (Android)
-Jetpack Compose
+---
 
-MVVM Architecture
 
-Retrofit (API integration)
+## 🔒 Authentication & Authorization
 
-Coroutines & Flow (asynchronous data handling)
+- JWT-based login for both students and teachers
+- Role-based access control to restrict API access
 
-Navigation Component
+---
 
-Kotlin
+## 📤 File Uploads
 
-Backend
-Node.js
+- Teachers can upload course-related files (handled via Multer on backend)
 
-Express.js
+---
 
-MongoDB (Mongoose ODM)
+## 🔧 Setup Instructions
 
-JWT Authentication
+### Prerequisites
+- Android Studio (for frontend)
+- Node.js and npm
+- MongoDB (local or cloud)
 
-Multer (File uploads)
+
+
+## 📌 Future Features
+- Notifications system
+- Chat and announcements
+- Role-based dashboards
+- Attendance tracking
+
+---
 
