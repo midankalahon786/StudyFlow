@@ -5,12 +5,17 @@ const authenticateToken = require('../middleware/authMiddleware');
 
 // Teacher routes
 router.post('/create', authenticateToken, quizController.createQuiz);
-router.get('/', authenticateToken, quizController.getQuizzes);
+router.get('/list', authenticateToken, quizController.getQuizzes);
+router.delete('/delete/:quizId', authenticateToken, quizController.deleteQuiz);
+
+router.get('/:quizId', authenticateToken, quizController.getQuizById); 
 
 // Student routes
 router.get('/student-quizzes', authenticateToken, quizController.getQuizzesForStudents);
 router.post('/submit', authenticateToken, quizController.submitQuiz);
-router.get('/report/:studentId', authenticateToken, quizController.getStudentReport);
+router.get('/:quizId/report/:studentId', authenticateToken, quizController.getStudentReport);
+
+router.get('/student/:studentId/submissions', authenticateToken, quizController.getAllStudentSubmissions);
 
 // Teacher can see submissions
 router.get('/submissions/:quizId', authenticateToken, quizController.getSubmissions);

@@ -1,5 +1,5 @@
 const { Sequelize, DataTypes } = require('sequelize');
-const sequelize = require('./index');  // Assuming you have an established connection in index.js
+const sequelize = require('./index');
 
 const Quiz = sequelize.define('Quiz', {
     title: {
@@ -7,7 +7,7 @@ const Quiz = sequelize.define('Quiz', {
         allowNull: false,
     },
     timeLimit: {
-        type: DataTypes.INTEGER, // in seconds
+        type: DataTypes.INTEGER,
         allowNull: false,
     },
     negativeMarking: {
@@ -19,9 +19,13 @@ const Quiz = sequelize.define('Quiz', {
         allowNull: false,
     },
     questions: {
-        type: DataTypes.JSONB, // Store questions as a JSON array
+        type: DataTypes.JSONB,
         allowNull: false,
     },
+    createdBy: {
+        type: DataTypes.INTEGER,
+        allowNull: false,
+    }
 }, {
     timestamps: true,
 });
