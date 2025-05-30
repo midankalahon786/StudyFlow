@@ -1,4 +1,4 @@
-const User = require('./user');
+const User = require('./User');
 const Student = require('./student');
 const Teacher = require('./teacher');
 const Quiz = require('./quiz');
@@ -26,5 +26,8 @@ Student.belongsToMany(Course, {
   as: 'courses',         
   foreignKey: 'studentId'
 });
+
+Submission.belongsTo(Student, { foreignKey: 'studentId', as: 'student' });
+
 
 module.exports = { User, Student, Teacher, Quiz, Submission, Course }; // Make sure to export Course

@@ -1,8 +1,8 @@
 const { Sequelize } = require('sequelize');
 
-require('dotenv').config(); // Load environment variables from .env file
+require('dotenv').config(); 
 
-const { PGDATABASE, PGUSER, PGPASSWORD, PGHOST } = process.env; // Destructure environment variables
+const { PGDATABASE, PGUSER, PGPASSWORD, PGHOST } = process.env; 
 const sequelize = new Sequelize(PGDATABASE, PGUSER, PGPASSWORD, {
     host: PGHOST,
     dialect: 'postgres',

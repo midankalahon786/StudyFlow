@@ -6,9 +6,10 @@ const authenticateToken = require('../middleware/authMiddleware');
 // Teacher routes
 router.post('/create', authenticateToken, quizController.createQuiz);
 router.get('/list', authenticateToken, quizController.getQuizzes);
-router.delete('/delete/:quizId', authenticateToken, quizController.deleteQuiz);
+router.delete('/:quizId', authenticateToken, quizController.deleteQuiz);
 
 router.get('/:quizId', authenticateToken, quizController.getQuizById); 
+router.put('/:quizId', authenticateToken, quizController.updateQuiz);
 
 // Student routes
 router.get('/student-quizzes', authenticateToken, quizController.getQuizzesForStudents);
