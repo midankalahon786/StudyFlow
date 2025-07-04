@@ -2,3 +2,5 @@ node_modules/
 /backend/.env
 build/
 dist/
+migrations/
+uploads/
