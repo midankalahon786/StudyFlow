@@ -1,32 +1,44 @@
-// middleware/auth.js
+// backend/middleware/authMiddleware.js
 
 const jwt = require('jsonwebtoken');
-const User = require('../models/user'); // Adjust according to your User model location
+const db = require('../models'); // Assuming you import db from index.js
+const User = db.User; // Access User model via db object
 
 const authenticateUser = async (req, res, next) => {
     const token = req.header('Authorization')?.replace('Bearer ', '');
 
+    console.log('[AUTH_MIDDLEWARE] Received Authorization Header:', req.header('Authorization'));
+    console.log('[AUTH_MIDDLEWARE] Extracted Token:', token ? token.substring(0, 30) + '...' : 'None'); // Log partial token for security
+
     if (!token) {
+        console.log('[AUTH_MIDDLEWARE] No token provided.');
         return res.status(401).json({ message: 'Access denied. No token provided.' });
     }
 
     try {
         const decoded = jwt.verify(token, process.env.JWT_SECRET);
-        const user = await User.findByPk(decoded.id); // Assuming user ID is stored in JWT payload
+        console.log('[AUTH_MIDDLEWARE] Token successfully decoded:', decoded);
+
+        const user = await User.findByPk(decoded.id);
 
         if (!user) {
-            return res.status(401).json({ message: 'Invalid token.' });
+            console.log('[AUTH_MIDDLEWARE] User not found for decoded ID:', decoded.id);
+            return res.status(401).json({ message: 'Invalid token: User not found.' }); // More specific message
         }
 
-        // Attach the user's ID to req.userId
         req.userId = user.id;
-
-        // You can still attach the entire user object if needed
-        req.user = user;
-
+        req.user = user; // Attach the full user object
+        console.log('[AUTH_MIDDLEWARE] User authenticated:', user.username, 'Role:', user.role);
         next();
     } catch (error) {
-        return res.status(400).json({ message: 'Invalid token.' });
+        console.error('[AUTH_MIDDLEWARE] Token verification failed:', error.message);
+        // Check if error.name is 'TokenExpiredError' or 'JsonWebTokenError' for specific handling
+        if (error.name === 'TokenExpiredError') {
+            return res.status(401).json({ message: 'Invalid token: Token expired.' });
+        } else if (error.name === 'JsonWebTokenError') {
+             return res.status(401).json({ message: 'Invalid token: Malformed token or invalid secret.' });
+        }
+        return res.status(400).json({ message: 'Invalid token.' }); // Generic fallback
     }
 };
 

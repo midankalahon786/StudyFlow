@@ -1,45 +1,70 @@
-const Quiz = require('../models/quiz');
-const Submission = require('../models/submissions');
-const Student = require('../models/student');
-const User = require('../models/User');
-const { Op } = require('sequelize');
+// backend/controllers/quizController.js
+
+// --- CRITICAL CHANGE: IMPORT THE CENTRAL DB OBJECT ---
+const db = require('../models'); // This imports the db object which contains all initialized models
+const Quiz = db.Quiz; // Now access Quiz via db.Quiz
+const Submission = db.Submission; // Now access Submission via db.Submission
+const Student = db.Student; // Access Student via db.Student
+const User = db.User; // Access User via db.User
+const Teacher = db.Teacher; // Assuming you might use this for teacher checks in future quiz routes
+
+const { Op } = require('sequelize'); // Sequelize operators
+
 
 // Create a new quiz
 exports.createQuiz = async (req, res) => {
     try {
-        const { title, timeLimit, negativeMarking, totalMarks, questions } = req.body;
+        const { title, timeLimit, negativeMarking, totalMarks, questions, courseId } = req.body; // Added courseId
+        const userId = req.user.id; // From authenticateToken middleware
+        const userRole = req.user.role;
 
-        console.log("Create Quiz Request Body:", req.body); // Log the entire body
+        console.log("Create Quiz Request Body:", req.body);
         console.log("Title present:", !!title);
         console.log("timeLimit present:", !!timeLimit);
         console.log("negativeMarking present:", !!negativeMarking);
         console.log("totalMarks present:", !!totalMarks);
         console.log("questions present:", !!questions);
+        console.log("courseId present:", !!courseId);
 
-        if (typeof title === 'undefined' || typeof timeLimit === 'undefined' || typeof negativeMarking === 'undefined' || typeof totalMarks === 'undefined' || typeof questions === 'undefined') {
+
+        if (typeof title === 'undefined' || typeof timeLimit === 'undefined' || typeof negativeMarking === 'undefined' || typeof totalMarks === 'undefined' || typeof questions === 'undefined' || typeof courseId === 'undefined') {
             return res.status(400).json({
-                error: 'All fields are required'
+                error: 'All fields (title, timeLimit, negativeMarking, totalMarks, questions, courseId) are required'
             });
         }
 
+        // Authorization: Only teachers can create quizzes (or admins)
+        if (userRole !== 'teacher' && userRole !== 'admin') {
+            return res.status(403).json({ message: 'Only teachers or administrators can create quizzes.' });
+        }
 
-        let questionIdCounter = 1; 
+        // Optional: Verify if the teacher is authorized for this course, if courseId is provided
+        // This assumes a teacher can only create quizzes for courses they teach.
+        if (userRole === 'teacher' && courseId) {
+            const course = await db.Course.findByPk(courseId);
+            const teacherProfile = await db.Teacher.findOne({ where: { userId: userId } });
+            if (!course || !teacherProfile || course.teacherId !== teacherProfile.id) {
+                return res.status(403).json({ message: 'You are not authorized to create quizzes for this course.' });
+            }
+        }
+
+
+        let questionIdCounter = 1;
         const questionsWithUniqueIds = questions.map(q => {
-            // Ensure the question object is spread to keep existing properties
             return {
                 ...q,
-                id: questionIdCounter++ 
+                id: q.id || questionIdCounter++ // Preserve existing IDs if present, otherwise assign new
             };
         });
-        // --- IMPORTANT CHANGE ENDS HERE ---
 
-        const quiz = await Quiz.create({
+        const quiz = await Quiz.create({ // Correct: db.Quiz.create
             title,
             timeLimit,
             negativeMarking,
             totalMarks,
-            questions: questionsWithUniqueIds, // Use the modified array with unique IDs
-            createdBy: req.userId, // Assign the creator of the quiz
+            questions: questionsWithUniqueIds,
+            createdBy: userId, // Assign the creator of the quiz (User ID)
+            courseId // Link quiz to a course
         });
 
         res.status(201).json({
@@ -59,24 +84,25 @@ exports.createQuiz = async (req, res) => {
 exports.deleteQuiz = async (req, res) => {
     try {
         const { quizId } = req.params;
-        const userId = req.userId; // Use req.userId from authMiddleware
+        const userId = req.user.id; // Use req.user.id from authMiddleware
+        const userRole = req.user.role;
 
-        const quiz = await Quiz.findByPk(quizId);
+        const quiz = await Quiz.findByPk(quizId); // Correct: db.Quiz.findByPk
 
         if (!quiz) {
             return res.status(404).json({ message: 'Quiz not found' });
         }
 
-        // Ensure only the creator can delete
-        if (quiz.createdBy !== userId) {
-            return res.status(403).json({ message: 'Unauthorized: Only the creator can delete this quiz' });
+        // Authorization: Only the creator or an admin can delete
+        if (quiz.createdBy !== userId && userRole !== 'admin') {
+            return res.status(403).json({ message: 'Unauthorized: Only the creator or an admin can delete this quiz' });
         }
 
-        await quiz.destroy();
+        await quiz.destroy(); // Correct: quiz.destroy() on the instance
 
         return res.status(200).json({ message: 'Quiz deleted successfully' });
     } catch (error) {
-        console.error("Error deleting quiz:", error); // Added detailed logging
+        console.error("Error deleting quiz:", error);
         return res.status(500).json({ message: 'Server error deleting quiz', error: error.message });
     }
 };
@@ -84,37 +110,48 @@ exports.deleteQuiz = async (req, res) => {
 exports.updateQuiz = async (req, res) => {
     try {
         const { quizId } = req.params;
-        const userId = req.userId; // Assuming req.userId is set by authMiddleware
-        const { title, timeLimit, negativeMarking, totalMarks, questions } = req.body;
+        const userId = req.user.id; // Assuming req.user.id is set by authMiddleware
+        const userRole = req.user.role;
+        const { title, timeLimit, negativeMarking, totalMarks, questions, courseId } = req.body;
 
-        const quiz = await Quiz.findByPk(quizId);
+        const quiz = await Quiz.findByPk(quizId); // Correct: db.Quiz.findByPk
 
         if (!quiz) {
             return res.status(404).json({ error: 'Quiz not found' });
         }
 
-        // Authorization: Only the creator can update the quiz
-        if (quiz.createdBy !== userId) {
-            return res.status(403).json({ error: 'Unauthorized: You are not the creator of this quiz.' });
+        // Authorization: Only the creator or an admin can update the quiz
+        if (quiz.createdBy !== userId && userRole !== 'admin') {
+            return res.status(403).json({ error: 'Unauthorized: You are not the creator or an admin of this quiz.' });
         }
 
-        // Optional: Re-assign unique IDs to questions if they are being updated
-        // This is important if questions can be added/removed during an edit.
-        let questionIdCounter = 1; // Or use uuidv4()
-        const questionsWithUniqueIds = questions.map(q => {
+        // If courseId is provided, verify authorization for it as well
+        if (courseId && userRole === 'teacher') {
+            const course = await db.Course.findByPk(courseId);
+            const teacherProfile = await db.Teacher.findOne({ where: { userId: userId } });
+            if (!course || !teacherProfile || course.teacherId !== teacherProfile.id) {
+                return res.status(403).json({ message: 'You are not authorized to assign this quiz to the specified course.' });
+            }
+        }
+
+
+        // Re-assign unique IDs to questions if they are being updated
+        let questionIdCounter = 1;
+        const questionsWithUniqueIds = questions ? questions.map(q => {
             return {
                 ...q,
                 id: q.id || questionIdCounter++ // Keep existing ID if present, otherwise assign new
             };
-        });
+        }) : quiz.questions; // If no questions provided in update, keep existing
 
         // Update the quiz fields
-        await quiz.update({
+        await quiz.update({ // Correct: quiz.update() on the instance
             title: title !== undefined ? title : quiz.title,
             timeLimit: timeLimit !== undefined ? timeLimit : quiz.timeLimit,
             negativeMarking: negativeMarking !== undefined ? negativeMarking : quiz.negativeMarking,
             totalMarks: totalMarks !== undefined ? totalMarks : quiz.totalMarks,
-            questions: questionsWithUniqueIds // Update with potentially new/modified questions
+            questions: questionsWithUniqueIds, // Update with potentially new/modified questions
+            courseId: courseId !== undefined ? courseId : quiz.courseId // Update courseId
         });
 
         res.status(200).json({ message: 'Quiz updated successfully', quiz });
@@ -125,48 +162,110 @@ exports.updateQuiz = async (req, res) => {
     }
 };
 
-// Get all quizzes for the teacher to see submissions
+// Get all quizzes (for teachers/admins)
 exports.getQuizzes = async (req, res) => {
     try {
-        const quizzes = await Quiz.findAll();
+        const userRole = req.user.role; // Assuming req.user.role is set by authMiddleware
+
+        let quizzes;
+        if (userRole === 'admin' || userRole === 'teacher') {
+            quizzes = await Quiz.findAll({ // Correct: db.Quiz.findAll
+                include: [
+                    {
+                        model: User, // Access via db.User
+                        as: 'creator', // Alias for the user who created the quiz
+                        attributes: ['id', 'username', 'firstName', 'lastName']
+                    },
+                    {
+                        model: db.Course, // Access via db.Course
+                        as: 'course', // Alias for the course the quiz belongs to
+                        attributes: ['id', 'title']
+                    }
+                ]
+            });
+        } else {
+             return res.status(403).json({ message: 'Unauthorized: Only teachers and admins can view all quizzes.' });
+        }
+
         res.status(200).json(quizzes);
     } catch (err) {
+        console.error("Error fetching quizzes:", err);
         res.status(500).json({ error: 'Failed to fetch quizzes', message: err.message });
     }
 };
 
-// Get submissions for a specific quiz
+// Get submissions for a specific quiz (for teachers/admins to grade)
 exports.getSubmissions = async (req, res) => {
     const { quizId } = req.params;
+    const userId = req.user.id;
+    const userRole = req.user.role;
+
     try {
-        const submissions = await Submission.findAll({
+        const quiz = await Quiz.findByPk(quizId);
+        if (!quiz) {
+            return res.status(404).json({ message: 'Quiz not found.' });
+        }
+
+        // Authorization: Only the quiz creator or an admin can view submissions
+        if (quiz.createdBy !== userId && userRole !== 'admin') {
+            return res.status(403).json({ message: 'Unauthorized: You are not the creator of this quiz or an admin.' });
+        }
+
+        const submissions = await Submission.findAll({ // Correct: db.Submission.findAll
             where: { quizId },
-            include: ['student'], // assuming you have a student relationship
+            include: [
+                {
+                    model: Student, // Access via db.Student
+                    as: 'student', // Assuming alias `student` in Submission.belongsTo(Student)
+                    include: [{ model: User, attributes: ['id', 'username', 'firstName', 'lastName'] }], // Access via db.User
+                    attributes: ['id', 'enrollmentNumber']
+                },
+                {
+                    model: Quiz, // Access via db.Quiz
+                    as: 'quiz', // Assuming alias `quiz` in Submission.belongsTo(Quiz)
+                    attributes: ['id', 'title']
+                }
+            ],
+            order: [['submittedAt', 'DESC']]
         });
         res.status(200).json(submissions);
     } catch (err) {
+        console.error("Error fetching submissions for quiz:", err);
         res.status(500).json({ error: 'Failed to fetch submissions', message: err.message });
     }
 };
 
+// Get all submissions for a specific student (for student's own report or admin/teacher view)
 exports.getAllStudentSubmissions = async (req, res) => {
     const { studentId } = req.params;
-    console.log(`Workspaceing all submissions for Student ID: ${studentId}`);
+    const userId = req.user.id;
+    const userRole = req.user.role;
+
+    console.log(`Fetching all submissions for Student ID: ${studentId}`);
 
     try {
-        const submissions = await Submission.findAll({
+        const studentProfile = await Student.findByPk(studentId); // Correct: db.Student.findByPk
+        if (!studentProfile) {
+            return res.status(404).json({ message: 'Student profile not found.' });
+        }
+
+        // Authorization: A student can only see their own submissions. Admin/Teachers can see anyone's.
+        if (userRole === 'student' && studentProfile.userId !== userId) {
+            return res.status(403).json({ message: 'Unauthorized: You can only view your own submissions.' });
+        }
+
+        const submissions = await Submission.findAll({ // Correct: db.Submission.findAll
             where: { studentId: studentId },
             include: [
                 {
-                    model: Quiz,
+                    model: Quiz, // Correct: db.Quiz
                     as: 'quiz',
-                    attributes: ['id', 'title', 'totalMarks'] // Only need summary info from Quiz
+                    attributes: ['id', 'title', 'totalMarks']
                 }
             ],
-            order: [['submittedAt', 'DESC']] // Order by most recent submission
+            order: [['submittedAt', 'DESC']]
         });
 
-        // Map submissions to a summary format for the frontend
         const submissionSummaries = submissions.map(submission => {
             const quizTitle = submission.quiz ? submission.quiz.title : 'Unknown Quiz';
             const totalMarks = submission.quiz ? submission.quiz.totalMarks : 0;
@@ -178,8 +277,8 @@ exports.getAllStudentSubmissions = async (req, res) => {
                 quizTitle: quizTitle,
                 score: submission.score,
                 totalMarks: totalMarks,
-                percentage: parseFloat(percentage.toFixed(2)), // Format to 2 decimal places
-                submittedAt: submission.submittedAt.toISOString() // Send as ISO string
+                percentage: parseFloat(percentage.toFixed(2)),
+                submittedAt: submission.submittedAt.toISOString()
             };
         });
 
@@ -192,50 +291,54 @@ exports.getAllStudentSubmissions = async (req, res) => {
 };
 
 exports.submitQuiz = async (req, res) => {
-    const { studentId, quizId, answers } = req.body; // 'answers' is expected to be an array of { questionId: Int, selectedOption: String }
+    const { studentId, quizId, answers } = req.body;
+    const userId = req.user.id; // User ID of the submitter
 
-    // Log the incoming request body for debugging
     console.log("Received quiz submission request:");
     console.log("studentId:", studentId);
     console.log("quizId:", quizId);
-    console.log("answers:", answers); // Crucial to inspect this structure
+    console.log("answers:", answers);
 
     try {
-        const quiz = await Quiz.findByPk(quizId);
+        // Authorization: Ensure the submitting user is the actual student or an admin
+        const studentProfile = await Student.findByPk(studentId); // Correct: db.Student.findByPk
+        if (!studentProfile) {
+            return res.status(404).json({ message: 'Student profile not found for the given ID.' });
+        }
+        if (studentProfile.userId !== userId && req.user.role !== 'admin') {
+            return res.status(403).json({ message: 'Unauthorized: You can only submit quizzes for your own student profile.' });
+        }
+
+        const quiz = await Quiz.findByPk(quizId); // Correct: db.Quiz.findByPk
         if (!quiz) {
             console.error("Quiz not found for ID:", quizId);
             return res.status(404).json({ error: 'Quiz not found' });
         }
 
-        // Log the fetched quiz data to inspect its question structure
         console.log("Fetched quiz questions structure:", quiz.questions);
 
-        let score = 0; // Initialize score
+        let score = 0;
 
-        // Iterate through the student's submitted answers
         answers.forEach(studentAnswer => {
-            // Find the corresponding question in the quiz's actual questions
             const questionInQuiz = quiz.questions.find(q => q.id === studentAnswer.questionId);
 
             if (questionInQuiz) {
                 const correctOptionString = questionInQuiz.options[questionInQuiz.correctOptionIndex];
 
-                // Log for debugging comparison
                 console.log(`Question ID: ${questionInQuiz.id}`);
                 console.log(`Student Selected Option: "${studentAnswer.selectedOption}"`);
                 console.log(`Correct Option String: "${correctOptionString}"`);
                 console.log(`Is Correct: ${studentAnswer.selectedOption === correctOptionString}`);
 
                 if (studentAnswer.selectedOption === correctOptionString) {
-                    score += questionInQuiz.mark || 0; // Add marks, default to 0 if mark is undefined
+                    score += questionInQuiz.mark || 0;
                     console.log(`Correct! Current score: ${score}`);
                 } else {
-                    // Apply negative marking if enabled and question has a mark
                     if (quiz.negativeMarking && quiz.negativeMarking > 0) {
                         score -= quiz.negativeMarking;
                         console.log(`Incorrect. Applied negative marking. Current score: ${score}`);
                     } else {
-                         console.log(`Incorrect. No negative marking applied. Current score: ${score}`);
+                        console.log(`Incorrect. No negative marking applied. Current score: ${score}`);
                     }
                 }
             } else {
@@ -243,53 +346,63 @@ exports.submitQuiz = async (req, res) => {
             }
         });
 
-        console.log("Final calculated score:", score); // Log the final calculated score
+        console.log("Final calculated score:", score);
 
-        // Save submission
-        const submission = await Submission.create({
+        const submission = await Submission.create({ // Correct: db.Submission.create
             studentId,
             quizId,
-            answers: answers, // Store the student's submitted answers directly as JSONB
-            score,             // This 'score' variable is the one that gets stored
+            answers: answers,
+            score,
+            submittedAt: new Date() // Ensure this is stored
         });
 
-        console.log("Submission created successfully:", submission.toJSON()); // Log the created submission
-    
+        console.log("Submission created successfully:", submission.toJSON());
+
         res.status(201).json(submission);
     } catch (err) {
-        console.error("Error submitting quiz:", err); // Log the detailed error
+        console.error("Error submitting quiz:", err);
         res.status(500).json({ error: 'Failed to submit quiz', message: err.message });
     }
 }
+
 exports.getStudentReport = async (req, res) => {
     const { quizId, studentId } = req.params;
+    const userId = req.user.id; // Authenticated user ID
+    const userRole = req.user.role;
 
     console.log(`Fetching report for Quiz ID: ${quizId} and Student ID: ${studentId}`);
 
     try {
-        const submission = await Submission.findOne({
+        const studentProfile = await Student.findByPk(studentId); // Correct: db.Student.findByPk
+        if (!studentProfile) {
+            return res.status(404).json({ message: 'Student profile not found.' });
+        }
+
+        // Authorization: Student can only view their own report. Teacher/Admin can view any.
+        if (userRole === 'student' && studentProfile.userId !== userId) {
+            return res.status(403).json({ message: 'Unauthorized: You can only view your own reports.' });
+        }
+
+        const submission = await Submission.findOne({ // Correct: db.Submission.findOne
             where: {
                 quizId: quizId,
                 studentId: studentId
             },
             include: [
                 {
-                    model: Quiz,
+                    model: Quiz, // Correct: db.Quiz
                     as: 'quiz',
-                    // Ensure 'title' is listed in attributes
                     attributes: ['id', 'title', 'totalMarks', 'negativeMarking', 'timeLimit', 'questions']
                 },
                 {
-                    model: Student,
+                    model: Student, // Correct: db.Student
                     as: 'student',
                     attributes: ['id', 'userId'],
                     include: [
                         {
-                            model: User,
-                            // This alias MUST match the alias used in your Sequelize association (models/index.js)
-                            // Based on previous errors, 'User' (capital U) is likely correct.
-                            as: 'User', // <--- CORRECT ALIAS HERE (Capital 'U')
-                            attributes: ['username']
+                            model: User, // Correct: db.User
+                            as: 'User', // Alias must match models/index.js (usually default 'User' for belongsTo)
+                            attributes: ['username', 'firstName', 'lastName'] // Added first/last name
                         }
                     ]
                 }
@@ -325,14 +438,21 @@ exports.getStudentReport = async (req, res) => {
             quizTitle: submission.quiz ? submission.quiz.title : 'Unknown Quiz',
             studentId: submission.studentId,
             studentUsername: submission.student && submission.student.User
-                                ? submission.student.User.username 
-                                : 'Unknown Student',
+                                    ? submission.student.User.username
+                                    : 'Unknown Student',
+            studentFirstName: submission.student && submission.student.User
+                                    ? submission.student.User.firstName
+                                    : 'Unknown',
+            studentLastName: submission.student && submission.student.User
+                                    ? submission.student.User.lastName
+                                    : 'Unknown',
             score: submission.score,
             totalMarks: submission.quiz ? submission.quiz.totalMarks : 0,
             percentage: submission.quiz && submission.quiz.totalMarks > 0
-                                ? parseFloat(((submission.score / submission.quiz.totalMarks) * 100).toFixed(2))
-                                : 0.0,
-            questions: questionsForReport
+                                    ? parseFloat(((submission.score / submission.quiz.totalMarks) * 100).toFixed(2))
+                                    : 0.0,
+            questions: questionsForReport,
+            submittedAt: submission.submittedAt ? submission.submittedAt.toISOString() : null // Added submittedAt
         };
 
         res.status(200).json(reportData);
@@ -346,11 +466,24 @@ exports.getStudentReport = async (req, res) => {
 
 exports.getQuizzesForStudents = async (req, res) => {
     try {
-        const quizzes = await Quiz.findAll({
-            attributes: ['id', 'title', 'timeLimit', 'totalMarks', 'createdAt', 'updatedAt'] // no answers
+        const quizzes = await Quiz.findAll({ // Correct: db.Quiz.findAll
+            attributes: ['id', 'title', 'timeLimit', 'totalMarks', 'createdAt', 'updatedAt', 'courseId'], // Added courseId
+            include: [
+                {
+                    model: db.Course, // Access via db.Course
+                    as: 'course',
+                    attributes: ['id', 'title']
+                },
+                {
+                    model: db.User, // Access via db.User
+                    as: 'creator',
+                    attributes: ['firstName', 'lastName']
+                }
+            ]
         });
         res.status(200).json(quizzes);
     } catch (err) {
+        console.error("Error fetching quizzes for students:", err); // Specific log
         res.status(500).json({ error: 'Failed to fetch quizzes for students', message: err.message });
     }
 };
@@ -360,7 +493,20 @@ exports.getQuizById = async (req, res) => {
     try {
         const { quizId } = req.params;
 
-        const quiz = await Quiz.findByPk(quizId); 
+        const quiz = await Quiz.findByPk(quizId, { // Correct: db.Quiz.findByPk
+            include: [
+                {
+                    model: db.User, // Access via db.User
+                    as: 'creator',
+                    attributes: ['id', 'username', 'firstName', 'lastName']
+                },
+                {
+                    model: db.Course, // Access via db.Course
+                    as: 'course',
+                    attributes: ['id', 'title']
+                }
+            ]
+        });
 
         if (!quiz) {
             return res.status(404).json({ message: 'Quiz not found' });
@@ -368,11 +514,23 @@ exports.getQuizById = async (req, res) => {
 
         res.status(200).json(quiz);
     } catch (error) {
-        // Log the error for debugging purposes
         console.error("Error fetching quiz by ID:", error);
         res.status(500).json({
             error: 'Failed to fetch quiz',
             message: error.message
         });
     }
+};
+
+module.exports = {
+    createQuiz: exports.createQuiz,
+    deleteQuiz: exports.deleteQuiz,
+    updateQuiz: exports.updateQuiz,
+    getQuizzes: exports.getQuizzes,
+    getSubmissions: exports.getSubmissions,
+    getAllStudentSubmissions: exports.getAllStudentSubmissions,
+    submitQuiz: exports.submitQuiz,
+    getStudentReport: exports.getStudentReport,
+    getQuizzesForStudents: exports.getQuizzesForStudents,
+    getQuizById: exports.getQuizById
 };

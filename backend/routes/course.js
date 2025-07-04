@@ -1,57 +1,133 @@
 const express = require('express');
 const router = express.Router();
+
 const upload = require('../multerConfig');
-const Course = require('../models/course');
-const Student = require('../models/student');
-const authenticateUser = require('../middleware/authMiddleware');
+
+const db = require('../models');
 const { Op } = require('sequelize');
-const { User } = require('../models/associations');
+const fs = require('fs');
+const path = require('path');
+const authenticateUser = require('../middleware/authMiddleware');
+const authorizeRole = require('../middleware/authorizeRole');
+const courseController = require('../controllers/courseController'); // Import the course controller
 
+router.use((req, res, next) => {
+    console.log(`[COURSE_ROUTE] Incoming request: ${req.method} ${req.originalUrl}. User: ${req.user ? req.user.username : 'N/A'}`);
+    next();
+});
 
-// Route for creating a new course with optional file and assigned users
+// Route to create a new course with file upload and student assignment
 router.post('/create-with-extras', authenticateUser, upload.single('file'), async (req, res) => {
+    console.log('Received request for /create-with-extras');
+    console.log('Request Body:', req.body);
+    console.log('Request File:', req.file);
+
     try {
         const { title, description } = req.body;
         const file = req.file;
+        const userId = req.user.id; // User ID from authenticated token
+        const userRole = req.user.role;
 
-        // Parse assignedUsers from JSON string (sent as multipart field)
-        let usersArray = [];
+        // Authorization check: Only teachers or admins can create courses
+        if (userRole !== 'teacher' && userRole !== 'admin') {
+            return res.status(403).json({ message: 'Only teachers or administrators can create courses.' });
+        }
+
+        let teacherId = null;
+        if (userRole === 'teacher') {
+            const teacher = await db.Teacher.findOne({ where: { userId: userId } });
+            if (!teacher) {
+                return res.status(403).json({ message: 'Teacher profile not found for this user.' });
+            }
+            teacherId = teacher.id; // This is the ID from the Teacher model
+        }
+
+        let studentIds = [];
         if (req.body.assignedUsers) {
             try {
-                usersArray = JSON.parse(req.body.assignedUsers);
-                if (!Array.isArray(usersArray)) {
-                    return res.status(400).json({ message: 'assignedUsers must be a JSON array.' });
+                studentIds = JSON.parse(req.body.assignedUsers);
+                if (!Array.isArray(studentIds) || !studentIds.every(id => typeof id === 'string' || typeof id === 'number')) {
+                    return res.status(400).json({ message: 'assignedUsers must be a JSON array of student IDs.' });
                 }
             } catch (parseError) {
+                console.error("Failed to parse assignedUsers:", parseError);
                 return res.status(400).json({ message: 'Invalid JSON format in assignedUsers.' });
             }
         }
+        console.log('Parsed Student IDs:', studentIds);
 
         // Validate required fields
-        if (!title || !description || usersArray.length === 0) {
-            return res.status(400).json({ message: 'Title, description, and at least one assigned user are required.' });
+        if (!title || !description || studentIds.length === 0) {
+            // If a file was uploaded but validation fails, clean it up
+            if (file) {
+                const filePath = path.join(__dirname, '..', 'uploads', 'course_resources', file.filename);
+                fs.unlink(filePath, (err) => {
+                    if (err) console.error('Error deleting uploaded file:', err);
+                });
+            }
+            return res.status(400).json({ message: 'Title, description, and at least one assigned student are required.' });
         }
 
         // Prepare course data
         const courseData = {
             title,
             description,
-            assignedUsers: usersArray,
-            createdBy: req.user.id, // Store as INTEGER (user ID)
+            createdBy: userId,
+            teacherId: teacherId,
         };
 
         if (file) {
-            courseData.fileUrl = `/uploads/${file.filename}`;
+            // CRITICAL FIX 3: Correct the fileUrl path to match multerConfig's destination
+            courseData.fileUrl = `/uploads/course_resources/${file.filename}`;
         }
 
-        const newCourse = await Course.create(courseData);
+        const newCourse = await db.Course.create(courseData);
+
+        // Assign students using the Many-to-Many association
+        if (studentIds.length > 0) {
+            await newCourse.setStudents(studentIds);
+        }
+
+        const courseWithStudents = await db.Course.findByPk(newCourse.id, {
+            include: [{
+                model: db.Student,
+                as: 'students',
+                include: [{
+                    model: db.User,
+                    attributes: ['firstName', 'lastName']
+                }],
+                attributes: ['id', 'enrollmentNumber', 'department', 'semester', 'batchYear', 'userId']
+            }]
+        });
+
+        const formattedStudents = courseWithStudents.students.map(student => ({
+            id: student.id,
+            enrollmentNumber: student.enrollmentNumber,
+            department: student.department,
+            semester: student.semester,
+            batchYear: student.batchYear,
+            userId: student.userId,
+            firstName: student.User?.firstName || 'Unnamed',
+            lastName: student.User?.lastName || 'Unnamed'
+        }));
+
 
         res.status(201).json({
             message: 'Course created successfully',
-            course: newCourse,
+            course: {
+                ...courseWithStudents.toJSON(),
+                students: formattedStudents
+            },
         });
     } catch (error) {
         console.error('Error creating course:', error);
+        // If an error occurs after file upload but before DB operation, delete the file
+        if (req.file) {
+            const filePath = path.join(__dirname, '..', 'uploads', 'course_resources', req.file.filename);
+            fs.unlink(filePath, (err) => {
+                if (err) console.error('Error deleting uploaded file on error:', err);
+            });
+        }
         res.status(500).json({ message: 'Failed to create course', error: error.message });
     }
 });
@@ -63,22 +139,55 @@ router.get('/list', authenticateUser, async (req, res) => {
         let courses;
 
         if (user.role === 'teacher') {
-            // Teachers see courses they created
-            courses = await Course.findAll({
-                where: { createdBy: user.id }
+            const teacher = await db.Teacher.findOne({ where: { userId: user.id } });
+            if (!teacher) {
+                return res.status(403).json({ message: 'Teacher profile not found.' });
+            }
+            courses = await db.Course.findAll({
+                where: { teacherId: teacher.id },
+                include: [{
+                    model: db.Student,
+                    as: 'students',
+                    include: [{ model: db.User, attributes: ['firstName', 'lastName'] }]
+                }]
+            });
+        } else if (user.role === 'student') {
+            const student = await db.Student.findOne({ where: { userId: user.id } });
+            if (!student) {
+                return res.status(403).json({ message: 'Student profile not found.' });
+            }
+            courses = await student.getCourses({
+                include: [{
+                    model: db.User,
+                    as: 'creator',
+                    attributes: ['firstName', 'lastName']
+                }, {
+                    model: db.Teacher,
+                    as: 'teacher',
+                    include: [{ model: db.User, attributes: ['firstName', 'lastName'] }],
+                    attributes: ['id', 'department', 'designation']
+                }]
+            });
+        } else if (user.role === 'admin') {
+            courses = await db.Course.findAll({
+                include: [{
+                    model: db.Student,
+                    as: 'students',
+                    include: [{ model: db.User, attributes: ['firstName', 'lastName'] }]
+                }, {
+                    model: db.User,
+                    as: 'creator',
+                    attributes: ['firstName', 'lastName']
+                }, {
+                    model: db.Teacher,
+                    as: 'teacher',
+                    include: [{ model: db.User, attributes: ['firstName', 'lastName'] }],
+                    attributes: ['id', 'department', 'designation']
+                }]
             });
         } else {
-            // Students see only courses assigned to them
-             courses = await Course.findAll({
-                where: {
-                    assignedUsers: {
-                        [Op.contains]: [user.id.toString()] // Ensure type match
-                    }
-                }
-            });
+            return res.status(403).json({ message: 'Your role does not have permission to view courses.' });
         }
-        console.log('Courses fetched:', courses);
-        // Log the fetched courses for debugging
         res.status(200).json({ courses });
     } catch (error) {
         console.error('Error fetching courses:', error);
@@ -86,25 +195,25 @@ router.get('/list', authenticateUser, async (req, res) => {
     }
 });
 
-// Route for a student to get their assigned courses
-router.get('/my-courses', authenticateUser, async (req, res) => {
+// Route for a student to get their assigned courses (redundant with /list for students, can remove or keep for specific use)
+router.get('/my-courses', authenticateUser, authorizeRole(['student']), async (req, res) => {
     try {
         const user = req.user;
-
-        if (user.role !== 'student') {
-            return res.status(403).json({ message: 'You do not have permission to access this route.' });
+        const student = await db.Student.findOne({ where: { userId: user.id } });
+        if (!student) {
+            return res.status(404).json({ message: 'Student profile not found.' });
         }
-      const student = await Student.findOne({ where: { userId: user.id } });
-        if(!student){
-             return res.status(404).json({ message: 'Student not found.' });
-        }
-        // Students see only courses assigned to them
-        const courses = await Course.findAll({
-            where: {
-                assignedUsers: {
-                  [Op.contains]: [student.enrollmentNumber]
-                }
-            }
+        const courses = await student.getCourses({
+            include: [{
+                model: db.User,
+                as: 'creator',
+                attributes: ['firstName', 'lastName']
+            }, {
+                model: db.Teacher,
+                as: 'teacher',
+                include: [{ model: db.User, attributes: ['firstName', 'lastName'] }],
+                attributes: ['id', 'department', 'designation']
+            }]
         });
 
         res.status(200).json({ courses });
@@ -114,28 +223,30 @@ router.get('/my-courses', authenticateUser, async (req, res) => {
     }
 });
 
-
-router.get('/students', authenticateUser, async (req, res) => {
+// Route to get all students (for admin/teacher to assign)
+router.get('/students', authenticateUser, authorizeRole(['admin', 'teacher']), async (req, res) => {
     try {
-        const user = req.user;
+        const students = await db.Student.findAll({
+            include: [
+                {
+                    model: db.User,
+                    attributes: ['firstName', 'lastName'],
+                    as: 'User'
+                },
+                {
+                    model: db.Course,
+                    as: 'courses',
+                    through: { attributes: [] },
+                    required: false
+                }
+            ],
 
-        if (user.role !== 'admin' && user.role !== 'teacher') {
-            return res.status(403).json({ message: 'You do not have permission to view students.' });
-        }
-
-        // Fetch students with the associated User model (including firstName and lastName)
-        const students = await Student.findAll({
-            include: {
-                model: User,
-                attributes: ['firstName', 'lastName'] // Include firstName and lastName fields
-            }
         });
 
         if (!students || students.length === 0) {
-            return res.status(404).json({ message: 'No students found.' });
+            return res.status(200).json({ students: [] });
         }
 
-        // Format the student data to include firstName and lastName
         const formattedStudents = students.map(student => ({
             id: student.id,
             enrollmentNumber: student.enrollmentNumber,
@@ -154,30 +265,34 @@ router.get('/students', authenticateUser, async (req, res) => {
     }
 });
 
-// Route to get students assigned to a specific course
-router.get('/students/:courseId', authenticateUser, async (req, res) => {
+// Route to get students enrolled in a specific course
+router.get('/:courseId/students', authenticateUser, async (req, res) => {
     try {
         const { courseId } = req.params;
+        const user = req.user;
 
-        // Find the course
-        const course = await Course.findByPk(courseId);
-
+        const course = await db.Course.findByPk(courseId);
         if (!course) {
             return res.status(404).json({ message: 'Course not found' });
         }
 
-        const assignedEnrollmentNumbers = course.assignedUsers;
+        const teacher = await db.Teacher.findOne({ where: { userId: user.id } });
+        const isTeacher = user.role === 'teacher' && teacher && course.teacherId === teacher.id;
+        const isAdmin = user.role === 'admin';
+        const currentStudentProfile = await db.Student.findOne({ where: { userId: user.id } });
+        const isEnrolledStudent = user.role === 'student' && currentStudentProfile && (await course.hasStudent(currentStudentProfile));
 
-        const students = await Student.findAll({
-            where: {
-                enrollmentNumber: {
-                    [Op.in]: assignedEnrollmentNumbers
-                }
-            },
-            include: {
-                model: User,
+
+        if (!isTeacher && !isAdmin && !isEnrolledStudent) {
+            return res.status(403).json({ message: 'You do not have permission to view students for this course.' });
+        }
+
+        const students = await course.getStudents({
+            include: [{
+                model: db.User,
                 attributes: ['firstName', 'lastName']
-            }
+            }],
+            attributes: ['id', 'enrollmentNumber', 'department', 'semester', 'batchYear', 'userId']
         });
 
         const formattedStudents = students.map(student => ({
@@ -198,31 +313,38 @@ router.get('/students/:courseId', authenticateUser, async (req, res) => {
     }
 });
 
-// Route to update the students assigned to a course
+// Route to update (assign/unassign) students for a course (Teacher/Admin only)
 router.put('/:courseId/students', authenticateUser, async (req, res) => {
     try {
         const { courseId } = req.params;
         const { studentIds } = req.body;
+        const user = req.user;
 
-        const course = await Course.findByPk(courseId);
+        const course = await db.Course.findByPk(courseId);
         if (!course) {
             return res.status(404).json({ message: 'Course not found' });
         }
 
-        if (!Array.isArray(studentIds)) {
-            return res.status(400).json({ message: 'studentIds must be an array' });
+        const teacher = await db.Teacher.findOne({ where: { userId: user.id } });
+
+        if (!teacher || (course.teacherId !== teacher.id && user.role !== 'admin')) {
+            return res.status(403).json({ message: 'You do not have permission to update students for this course.' });
         }
 
-        // Use Sequelize's setStudents method to update the association
+        if (!Array.isArray(studentIds)) {
+            return res.status(400).json({ message: 'studentIds must be an array of student IDs.' });
+        }
+
+        console.log('Attempting to assign students with IDs:', studentIds);
+
         await course.setStudents(studentIds);
 
-        // Fetch the updated course data with associated students
-        const updatedCourse = await Course.findByPk(courseId, {
+        const updatedCourse = await db.Course.findByPk(courseId, {
             include: [{
-                model: Student,
-                as: 'students', // Use the alias defined in the association
+                model: db.Student,
+                as: 'students',
                 include: {
-                    model: User,
+                    model: db.User,
                     attributes: ['firstName', 'lastName']
                 },
                 attributes: ['id', 'enrollmentNumber', 'department', 'semester', 'batchYear', 'userId']
@@ -236,7 +358,7 @@ router.put('/:courseId/students', authenticateUser, async (req, res) => {
             batchYear: student.batchYear,
             userId: student.userId,
             firstName: student.User?.firstName || 'Unnamed',
-            lastName: updatedCourse.User?.lastName || 'Unnamed'
+            lastName: student.User?.lastName || 'Unnamed'
         }));
         res.status(200).json({
             message: 'Course students updated successfully',
@@ -252,23 +374,38 @@ router.put('/:courseId/students', authenticateUser, async (req, res) => {
     }
 });
 
-// Route to delete a course by ID
+// Route to delete a course
 router.delete('/delete/:id', authenticateUser, async (req, res) => {
     try {
         const { id } = req.params;
         const user = req.user;
 
-        const course = await Course.findOne({ where: { id } });
+        const course = await db.Course.findByPk(id);
 
         if (!course) {
             return res.status(404).json({ message: 'Course not found' });
         }
 
-        if (course.createdBy !== user.id && user.role !== 'admin') {
-            return res.status(403).json({ message: 'You do not have permission to delete this course' });
+        const teacher = await db.Teacher.findOne({ where: { userId: user.id } });
+
+        if (!teacher || (course.teacherId !== teacher.id && user.role !== 'admin')) {
+            return res.status(403).json({ message: 'You do not have permission to delete this course.' });
         }
 
-        await Course.destroy({ where: { id } });
+        // Before deleting the course, if it has a fileUrl, delete the associated file
+        if (course.fileUrl) {
+            const filePath = path.join(__dirname, '..', course.fileUrl); // e.g., 'backend/uploads/course_resources/filename.ext'
+            fs.unlink(filePath, (err) => {
+                if (err) {
+                    console.error(`Error deleting course file ${filePath}:`, err);
+                    // Decide if you want to block deletion or just log the error
+                } else {
+                    console.log(`Successfully deleted course file: ${filePath}`);
+                }
+            });
+        }
+
+        await db.Course.destroy({ where: { id } });
 
         res.status(200).json({ message: 'Course deleted successfully' });
     } catch (error) {
@@ -277,45 +414,34 @@ router.delete('/delete/:id', authenticateUser, async (req, res) => {
     }
 });
 
-// Route to delete a student from a course
+// Route to remove a single student from a course (Teacher/Admin only)
 router.delete('/:courseId/students/:studentId', authenticateUser, async (req, res) => {
     try {
         const { courseId, studentId } = req.params;
         const user = req.user;
 
-        // Find the course
-        const course = await Course.findByPk(courseId);
+        const course = await db.Course.findByPk(courseId);
         if (!course) {
             return res.status(404).json({ message: 'Course not found' });
         }
 
-        // Find the student
-        const student = await Student.findByPk(studentId);
+        const student = await db.Student.findByPk(studentId);
         if (!student) {
-            return res.status(404).json({ message: 'Student not found' });
+            return res.status(404).json({ message: 'Student not found.' });
         }
 
-        // Check if the student is assigned to the course
-        const isAssigned = course.assignedUsers.includes(student.enrollmentNumber);
-        if (!isAssigned) {
-            return res.status(400).json({ message: 'Student is not assigned to this course' });
+        const teacher = await db.Teacher.findOne({ where: { userId: user.id } });
+
+        if (!teacher || (course.teacherId !== teacher.id && user.role !== 'admin')) {
+            return res.status(403).json({ message: 'You do not have permission to remove students from this course.' });
         }
-        // Remove the student's enrollmentNumber from the course's assignedUsers array
-        const updatedAssignedUsers = course.assignedUsers.filter(enr => enr !== student.enrollmentNumber);
-        course.assignedUsers = updatedAssignedUsers; // important
-        await course.save();
+
+        await course.removeStudent(student);
 
         res.status(200).json({ message: 'Student removed from course successfully' });
     } catch (error) {
-        console.error('Error deleting student from course:', error);
+        console.error('Error removing student from course:', error);
         res.status(500).json({ message: 'Failed to remove student from course', error: error.message });
     }
 });
-
-// Middleware for logging incoming requests
-router.use((req, res, next) => {
-    console.log('Incoming request:', req.method, req.originalUrl);
-    next();
-});
-
-module.exports = router;
+module.exports = router
