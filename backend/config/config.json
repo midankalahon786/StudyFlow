@@ -3,21 +3,21 @@
     "username": "postgres",
     "password": "npg_RfYBsbu50vNS",
     "database": "lmsdb",
-    "host": "ep-still-bar-a4xoapth-pooler.us-east-1.aws.neon.tech",
+    "host": "ep-still-bar-a4xoapth-pooler.us-east-1.aws.neon.tech/lmsdb?sslmode=require&channel_binding=require",
     "dialect": "postgres"
   },
   "test": {
     "username": "postgres",
     "password": "npg_RfYBsbu50vNS",
     "database": "lmsdb",
-    "host": "ep-still-bar-a4xoapth-pooler.us-east-1.aws.neon.tech",
+    "host": "ep-still-bar-a4xoapth-pooler.us-east-1.aws.neon.tech/lmsdb?sslmode=require&channel_binding=require",
     "dialect": "postgres"
   },
   "production": {
     "username": "postgres",
     "password": "npg_RfYBsbu50vNS",
     "database": "lmsdb",
-    "host": "ep-still-bar-a4xoapth-pooler.us-east-1.aws.neon.tech",
+    "host": "ep-still-bar-a4xoapth-pooler.us-east-1.aws.neon.tech/lmsdb?sslmode=require&channel_binding=require",
     "dialect": "postgres",
     "dialectOptions": {
       "ssl": {
