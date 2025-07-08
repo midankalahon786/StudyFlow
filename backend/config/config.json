@@ -18,6 +18,12 @@
     "password": "npg_RfYBsbu50vNS",
     "database": "lmsdb",
     "host": "ep-still-bar-a4xoapth-pooler.us-east-1.aws.neon.tech",
-    "dialect": "postgres"
+    "dialect": "postgres",
+    "dialectOptions": {
+      "ssl": {
+        "require": true,
+        "rejectUnauthorized": false
+      }
+    }
   }
 }
