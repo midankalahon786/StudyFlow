@@ -1,23 +1,23 @@
 {
   "development": {
     "username": "postgres",
-    "password": "Mymonster@786",
+    "password": "npg_RfYBsbu50vNS",
     "database": "lmsdb",
-    "host": "127.0.0.1",
+    "host": "ep-still-bar-a4xoapth-pooler.us-east-1.aws.neon.tech",
     "dialect": "postgres"
   },
   "test": {
     "username": "postgres",
-    "password": "Mymonster@786",
+    "password": "npg_RfYBsbu50vNS",
     "database": "lmsdb",
-    "host": "127.0.0.1",
+    "host": "ep-still-bar-a4xoapth-pooler.us-east-1.aws.neon.tech",
     "dialect": "postgres"
   },
   "production": {
     "username": "postgres",
-    "password": "Mymonster@786",
+    "password": "npg_RfYBsbu50vNS",
     "database": "lmsdb",
-    "host": "127.0.0.1",
+    "host": "ep-still-bar-a4xoapth-pooler.us-east-1.aws.neon.tech",
     "dialect": "postgres"
   }
 }
