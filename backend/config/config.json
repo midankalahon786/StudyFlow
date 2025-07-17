@@ -4,20 +4,32 @@
     "password": "npg_RfYBsbu50vNS",
     "database": "lmsdb",
     "host": "ep-still-bar-a4xoapth-pooler.us-east-1.aws.neon.tech",
-    "dialect": "postgres"
+    "dialect": "postgres",
+    "ssl": {
+      "require": true,
+      "rejectUnauthorized": false
+    }
   },
   "test": {
     "username": "lmsdb_owner",
     "password": "npg_RfYBsbu50vNS",
     "database": "lmsdb",
     "host": "ep-still-bar-a4xoapth-pooler.us-east-1.aws.neon.tech",
-    "dialect": "postgres"
+    "dialect": "postgres",
+    "ssl": {
+      "require": true,
+      "rejectUnauthorized": false
+    }
   },
   "production": {
     "username": "lmsdb_owner",
     "password": "npg_RfYBsbu50vNS",
     "database": "lmsdb",
     "host": "ep-still-bar-a4xoapth-pooler.us-east-1.aws.neon.tech",
-    "dialect": "postgres"
+    "dialect": "postgres",
+    "ssl": {
+      "require": true,
+      "rejectUnauthorized": false
+    }
   }
 }
