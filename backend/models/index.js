@@ -37,8 +37,6 @@ if (config.use_env_variable) {
   });
 }
 
-// Read all model files from the current directory and initialize them
-// This loop is CRITICAL: it dynamically loads each model and adds it to the 'db' object.
 fs
   .readdirSync(__dirname)
   .filter(file => {
@@ -46,30 +44,25 @@ fs
     return (file.indexOf('.') !== 0) && (file !== basename) && (file.slice(-3) === '.js');
   })
   .forEach(file => {
-    // Dynamically require each model file and pass sequelize and DataTypes
-    // The model.name (e.g., 'User', 'Student') is used as the key in the 'db' object.
+    console.log("Loading model:", file);
     const model = require(path.join(__dirname, file))(sequelize, Sequelize.DataTypes);
-    db[model.name] = model; // Add the initialized model to the db object
+    db[model.name] = model;
   });
 
-// After all models are loaded into the 'db' object, define associations.
-// This ensures that when db.User.hasOne(db.Student) is called, db.Student is
-// already a proper Sequelize model instance.
+
 Object.keys(db).forEach(modelName => {
   if (db[modelName].associate) {
-    db[modelName].associate(db); // Pass the entire db object to associate method (if present in model file)
+    db[modelName].associate(db);
   }
 });
 
-
-// --- CRITICAL SECTION: DEFINE ALL ASSOCIATIONS HERE ---
-// These aliases must be consistent with your controllers (e.g., getAllUsers)
 // User Associations
 db.User.hasOne(db.Student, { foreignKey: 'userId', as: 'studentProfile', onDelete: 'CASCADE' });
 db.Student.belongsTo(db.User, { foreignKey: 'userId' });
 
 db.User.hasOne(db.Teacher, { foreignKey: 'userId', as: 'teacherProfile', onDelete: 'CASCADE' });
-db.Teacher.belongsTo(db.User, { foreignKey: 'userId' });
+db.Teacher.belongsTo(db.User, { foreignKey: 'userId', as: 'user' }); 
+
 
 // Add associations for User creating Quizzes or Courses if they exist
 db.User.hasMany(db.Quiz, { foreignKey: 'createdBy', as: 'createdQuizzes' });
@@ -96,6 +89,13 @@ db.Teacher.hasMany(db.Course, { foreignKey: 'teacherId', as: 'coursesTaught' });
 
 db.Course.hasMany(db.Quiz, { foreignKey: 'courseId', as: 'quizzes' });
 db.Quiz.belongsTo(db.Course, { foreignKey: 'courseId', as: 'course' });
+
+//Resource Associations (Corrected again)
+db.Course.hasMany(db.Resource, { foreignKey: 'courseId', as: 'resources'});
+db.Resource.belongsTo(db.Course, { foreignKey: 'courseId', as: 'course'}); // Added 'as' alias for consistency
+
+db.Teacher.hasMany(db.Resource, { foreignKey: 'teacherId', as: 'uploadedResources'});
+db.Resource.belongsTo(db.Teacher, { foreignKey: 'teacherId', as: 'uploader'}); // Added 'as' alias for consistency
 
 
 // Quiz Associations

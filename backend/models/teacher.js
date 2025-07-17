@@ -1,11 +1,6 @@
-// F:\LMS\StudyFlow\backend\models\teacher.js
-
-// This file now exports a function that will define and return the Teacher model.
-// It accepts `sequelize` and `DataTypes` as arguments from `index.js`.
-
 module.exports = (sequelize, DataTypes) => {
   const Teacher = sequelize.define('Teacher', {
-      id: { // Explicitly defining the primary key for Teacher
+      id: { 
           type: DataTypes.INTEGER,
           primaryKey: true,
           autoIncrement: true,
@@ -49,12 +44,5 @@ module.exports = (sequelize, DataTypes) => {
       timestamps: true, // Automatically adds createdAt and updatedAt columns
       tableName: 'Teachers' // Explicitly define the table name
   });
-
-  // Associations for Teacher should be defined in backend/models/index.js, for example:
-  // Teacher.belongsTo(models.User, { foreignKey: 'userId' });
-  // Teacher.hasMany(models.Course, { foreignKey: 'teacherId', as: 'coursesTaught' });
-  // Teacher.hasMany(models.CourseResource, { foreignKey: 'teacherId' });
-
-
   return Teacher; // IMPORTANT: Return the defined Teacher model
 };

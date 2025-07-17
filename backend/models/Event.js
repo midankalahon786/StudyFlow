@@ -1,7 +1,3 @@
-// backend/models/Event.js
-// This file defines the Event model. It expects the sequelize instance
-// and DataTypes object to be passed to it when it's required.
-
 module.exports = (sequelize, DataTypes) => {
     const Event = sequelize.define('Event', {
         id: {

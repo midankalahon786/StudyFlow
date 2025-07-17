@@ -1,51 +1,110 @@
-// backend/multerConfig.js
 const multer = require('multer');
 const path = require('path');
-const fs = require('fs');
+const fs = require('fs'); // Node.js file system module
 
-// Define the base upload directory (as in server.js)
-const uploadsDir = path.join(__dirname, '..', 'uploads');
-// Define the specific directory for course resources
-const courseResourcesDir = path.join(uploadsDir, 'course_resources');
+// Define the directory for storing uploads.
+const UPLOAD_DIR = path.join(__dirname, '../uploads');
+const RESOURCES_DIR = path.join(UPLOAD_DIR, 'resources');
+const COURSE_FILES_DIR = path.join(UPLOAD_DIR, 'course_files'); // New directory for general course files
 
-// Ensure the upload directory exists (redundant if server.js already does, but safe)
-if (!fs.existsSync(uploadsDir)) {
-    fs.mkdirSync(uploadsDir, { recursive: true });
+// Ensure the upload directories exist
+if (!fs.existsSync(UPLOAD_DIR)) {
+    fs.mkdirSync(UPLOAD_DIR);
 }
-if (!fs.existsSync(courseResourcesDir)) {
-    fs.mkdirSync(courseResourcesDir, { recursive: true });
-    console.log(`Created course resources upload directory: ${courseResourcesDir}`);
+if (!fs.existsSync(RESOURCES_DIR)) {
+    fs.mkdirSync(RESOURCES_DIR);
+}
+if (!fs.existsSync(COURSE_FILES_DIR)) { // Ensure course_files directory exists
+    fs.mkdirSync(COURSE_FILES_DIR);
 }
 
-// Configure disk storage for Multer
-const storage = multer.diskStorage({
-    destination: function (req, file, cb) {
-        // Files will be saved in the 'course_resources' subdirectory
-        cb(null, courseResourcesDir);
+// Storage configuration for course resources
+const resourceStorage = multer.diskStorage({
+    destination: (req, file, cb) => {
+        // Dynamic destination based on courseId
+        const courseId = req.params.courseId; // Assuming courseId is in URL params
+        const courseResourcesPath = path.join(RESOURCES_DIR, courseId);
+
+        // Create course-specific directory if it doesn't exist
+        if (!fs.existsSync(courseResourcesPath)) {
+            fs.mkdirSync(courseResourcesPath, { recursive: true });
+        }
+        cb(null, courseResourcesPath);
     },
-    filename: function (req, file, cb) {
-        // Generate a unique filename: fieldname-timestamp.extension
+    filename: (req, file, cb) => {
+        // Generate a unique filename to prevent overwrites
         const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-        cb(null, `${file.fieldname}-${uniqueSuffix}${path.extname(file.originalname)}`);
+        cb(null, file.fieldname + '-' + uniqueSuffix + path.extname(file.originalname));
     }
 });
 
-// Create the Multer upload instance
-const upload = multer({
-    storage: storage,
-    limits: { fileSize: 20 * 1024 * 1024 }, // Increased to 20MB, adjust as needed
+// Multer upload middleware for resources
+const resourceUpload = multer({
+    storage: resourceStorage,
+    limits: { fileSize: 10 * 1024 * 1024 }, // Limit file size to 10MB (adjust as needed)
     fileFilter: (req, file, cb) => {
-        // Accept common file types for resources
-        const allowedTypes = /jpeg|jpg|png|gif|pdf|doc|docx|ppt|pptx|xls|xlsx|mp3|mp4|mov|avi|webm|txt|zip|rar/;
+
+        console.log('File upload attempt:', file.originalname, 'MIME:', file.mimetype);
+
+        const allowedExts = ['.pdf', '.doc', '.docx', '.ppt', '.pptx', '.xls', '.xlsx', '.jpg', '.jpeg', '.png', '.mp4', '.mov', '.avi'];
+        const allowedMimes = [
+            'application/pdf',
+            'application/msword',
+            'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+            'application/vnd.ms-powerpoint',
+            'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+            'application/vnd.ms-excel',
+            'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            'image/jpeg',
+            'image/png',
+            'video/mp4',
+            'video/quicktime', // for .mov
+            'video/x-msvideo'  // for .avi
+        ];
+    
+        const ext = path.extname(file.originalname).toLowerCase();
+        const mime = file.mimetype;
+    
+        if (allowedExts.includes(ext) || allowedMimes.includes(mime)) {
+            return cb(null, true);
+        } else {
+            cb(new Error('Error: Only PDF, document, presentation, spreadsheet, image, or video files are allowed!'));
+        }
+    }
+    
+});
+
+
+// New: Storage configuration for general course files (e.g., for createCourse)
+const courseFileStorage = multer.diskStorage({
+    destination: (req, file, cb) => {
+        cb(null, COURSE_FILES_DIR); // Store in a general course_files directory
+    },
+    filename: (req, file, cb) => {
+        const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+        cb(null, file.fieldname + '-' + uniqueSuffix + path.extname(file.originalname));
+    }
+});
+
+// New: Multer upload middleware for general course files
+const courseFileUpload = multer({
+    storage: courseFileStorage,
+    limits: { fileSize: 5 * 1024 * 1024 }, // Limit file size to 5MB (adjust as needed)
+    fileFilter: (req, file, cb) => {
+        const allowedTypes = /pdf|doc|docx|jpg|jpeg|png/; // Example: only documents and images
         const extname = allowedTypes.test(path.extname(file.originalname).toLowerCase());
         const mimetype = allowedTypes.test(file.mimetype);
 
         if (extname && mimetype) {
-            cb(null, true); // Accept the file
+            return cb(null, true);
         } else {
-            cb(new Error('Unsupported file type! Allowed types: images, PDFs, documents, audio, video, text, archives.'), false); // Reject the file
+            cb(new Error('Error: Only PDF, document, or image files are allowed for course creation!'));
         }
     }
 });
 
-module.exports = upload;
+
+module.exports = {
+    resourceUpload,
+    courseFileUpload // Export the new course file upload middleware
+};

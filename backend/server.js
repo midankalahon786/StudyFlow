@@ -41,13 +41,17 @@ app.use('/api/courses', courseRoutes);
 app.use('/api/quizzes', quizRoutes);
 app.use('/api/discussion', discussionRoutes);
 app.use('/api/calendar', eventRoutes);
+// Log file access BEFORE static middleware
+app.use('/api/uploads/resources', (req, res, next) => {
+  console.log('🪵 Static file requested:', req.originalUrl);
+  next();
+});
+// Go up one level from backend to root
+app.use('/api/uploads/resources', express.static(
+  path.join(__dirname, '..', 'uploads', 'resources')
+));
 
-
-
-// Log JWT_SECRET only if not in production
-if (process.env.NODE_ENV !== 'production') {
-  console.log('JWT_SECRET (for dev):', process.env.JWT_SECRET);
-}
+console.log('[STATIC MOUNT] Serving from:', path.join(__dirname, '..', 'uploads', 'resources'));
 
 // Schedule cron job for reminders
 cron.schedule('* * * * *', () => { // Runs every minute
