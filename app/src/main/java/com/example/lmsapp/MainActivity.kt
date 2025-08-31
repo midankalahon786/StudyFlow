@@ -218,14 +218,20 @@ fun MainScreen(lmsRepository: LMSRepository) { // Accept LMSRepository as a para
             }
         }
 
+        // In MainActivity.kt, inside your NavHost
+
         composable("home/{role}/{username}") { backStackEntry ->
             val role = sharedAuthViewModel.role.collectAsState().value
             val username = sharedAuthViewModel.username.collectAsState().value
+
+            val recentlyViewedCourses = courseViewModel.recentlyViewedCourses.collectAsState().value
 
             HomeScreen(
                 navController = navController, // Pass navController
                 role = role,
                 username = username,
+                // 2. Pass the list of courses to the HomeScreen
+                recentlyViewedCourses = recentlyViewedCourses,
                 onViewCourses = {
                     Log.d("NavDebug", "HomeScreen -> onViewCourses")
                     navController.navigate("courses/$role/$username") // Pass role and username to navigate
@@ -233,6 +239,15 @@ fun MainScreen(lmsRepository: LMSRepository) { // Accept LMSRepository as a para
                 onLogout = {
                     loginViewModel.logout()
                     navController.popBackStack("login", inclusive = false)
+                },
+                // 3. Add the course click handler for navigation
+                onCourseClick = { courseId ->
+                    // Navigate to the correct details screen based on the user's role
+                    if (role == "teacher") {
+                        navController.navigate("courseDetails/$courseId")
+                    } else {
+                        navController.navigate("studentCourseDetails/$courseId")
+                    }
                 }
             )
         }

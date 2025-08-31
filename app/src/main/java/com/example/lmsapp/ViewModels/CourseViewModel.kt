@@ -503,6 +503,19 @@ open class CourseViewModel(
         }
     }
 
+    // In your CourseViewModel class
+    private val _recentlyViewedCourses = MutableStateFlow<List<Course>>(emptyList())
+    val recentlyViewedCourses: StateFlow<List<Course>> = _recentlyViewedCourses.asStateFlow()
+
+    // You would call this function when a user views a course
+    fun addCourseToRecents(course: Course) {
+        val updatedList = _recentlyViewedCourses.value.toMutableList()
+        // Avoid duplicates and limit the list size, e.g., to 5
+        updatedList.remove(course)
+        updatedList.add(0, course)
+        _recentlyViewedCourses.value = updatedList.take(5)
+    }
+
 
     class CourseViewModelFactory(
         private val repository: LMSRepository,
