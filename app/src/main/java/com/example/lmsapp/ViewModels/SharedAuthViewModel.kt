@@ -1,16 +1,14 @@
 package com.example.lmsapp.ViewModels
 
-import android.annotation.SuppressLint
-import android.content.Context // Import Context
-import android.system.Os.remove
+import android.content.Context
 import android.util.Log
+import androidx.core.content.edit
 import androidx.lifecycle.ViewModel
-import androidx.lifecycle.ViewModelProvider // For the Factory
-import androidx.lifecycle.viewmodel.CreationExtras // For the Factory
+import androidx.lifecycle.ViewModelProvider
+import androidx.lifecycle.viewmodel.CreationExtras
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import androidx.core.content.edit
 
 // Modify the constructor to accept Context for SharedPreferences access
 class SharedAuthViewModel(private val context: Context) : ViewModel() {
