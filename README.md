@@ -1,4 +1,4 @@
-# 📚 Learning Management System (LMS) App
+# 📚 StudyFlow - Learning Management System (LMS) App
 
 A full-featured Learning Management System built using **Jetpack Compose** for the Android frontend and **Node.js** for the backend. This app enables seamless interaction between students and teachers through course management, quiz participation, and performance tracking.
 
