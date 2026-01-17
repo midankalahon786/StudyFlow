@@ -1,4 +1,4 @@
-const db = require('../models'); // This imports the db object from index.js
+const db = require('../models'); 
 const User = db.User;
 const Student = db.Student;
 const Teacher = db.Teacher;
@@ -6,8 +6,6 @@ const Teacher = db.Teacher;
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 require('dotenv').config();
-
-// The rest of your code remains the same...
 
 const register = async (req, res) => {
     const { role } = req.body;
@@ -17,9 +15,8 @@ const register = async (req, res) => {
     }
 
     let userData;
-    // Declare variables for student/teacher/admin specific fields
-    let enrollmentNumber, department, semester, batchYear; // For student
-    let employeeId, designation, yearsOfExperience, qualifications; // For teacher
+    let enrollmentNumber, department, semester, batchYear; 
+    let employeeId, designation, yearsOfExperience, qualifications;
 
     if (role === 'student') {
         const {
@@ -72,7 +69,6 @@ const register = async (req, res) => {
     }
 
     try {
-        // Check if user with given email or username already exists
         const existingUser = await User.findOne({
             where: {
                 [require('sequelize').Op.or]: [{ email: userData.email }, { username: userData.username }]
@@ -118,7 +114,6 @@ const register = async (req, res) => {
     }
 };
 
-// Login user and generate JWT token
 const login = async (req, res) => {
     const { username, password } = req.body;
 
@@ -165,7 +160,7 @@ const login = async (req, res) => {
 
 const changePassword = async (req, res) => {
     const { oldPassword, newPassword } = req.body;
-    const userId = req.user.id; // Assumes authMiddleware sets req.user
+    const userId = req.user.id; 
 
     if (!oldPassword || !newPassword) {
         return res.status(400).json({ error: 'Old and new passwords are required' });
@@ -195,24 +190,23 @@ const changePassword = async (req, res) => {
 
 const getAllUsers = async (req, res) => {
     try {
-        // Find all users and include their associated Student or Teacher details if they exist
         const users = await User.findAll({
             attributes: ['id', 'username', 'email', 'role', 'firstName', 'lastName', 'phoneNumber', 'createdAt'],
             include: [
                 {
                     model: Student,
-                    as: 'studentProfile', // Ensure this alias matches your User model association
+                    as: 'studentProfile', 
                     attributes: ['enrollmentNumber', 'department', 'semester', 'batchYear'],
-                    required: false // Left join, so users without student profile are still included
+                    required: false 
                 },
                 {
                     model: Teacher,
-                    as: 'teacherProfile', // Ensure this alias matches your User model association
+                    as: 'teacherProfile',
                     attributes: ['employeeId', 'department', 'designation', 'yearsOfExperience', 'qualifications'],
-                    required: false // Left join, so users without teacher profile are still included
+                    required: false 
                 }
             ],
-            order: [['createdAt', 'DESC']] // Order by creation date, newest first
+            order: [['createdAt', 'DESC']] 
         });
 
         res.status(200).json(users);

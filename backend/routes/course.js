@@ -1,24 +1,19 @@
-
 const express = require('express');
 const router = express.Router();
-
-// Corrected: Destructure the specific Multer instances from multerConfig
 const { resourceUpload, courseFileUpload } = require('../multerConfig');
-
 const db = require('../models');
 const { Op } = require('sequelize');
 const fs = require('fs');
 const path = require('path');
 const authenticateUser = require('../middleware/authMiddleware');
 const authorizeRole = require('../middleware/authorizeRole');
-const courseController = require('../controllers/courseController'); // Import the course controller
+const courseController = require('../controllers/courseController'); 
 
 router.use((req, res, next) => {
     console.log(`[COURSE_ROUTE] Incoming request: ${req.method} ${req.originalUrl}. User: ${req.user ? req.user.username : 'N/A'}`);
     next();
 });
 
-// Route to create a new course with file upload and student assignment
 router.post('/create-with-extras', authenticateUser, courseFileUpload.single('file'), async (req, res) => {
     console.log('Received request for /create-with-extras');
     console.log('Request Body:', req.body);
@@ -27,10 +22,9 @@ router.post('/create-with-extras', authenticateUser, courseFileUpload.single('fi
     try {
         const { title, description } = req.body;
         const file = req.file;
-        const userId = req.user.id; // User ID from authenticated token
+        const userId = req.user.id; 
         const userRole = req.user.role;
 
-        // Authorization check: Only teachers or admins can create courses
         if (userRole !== 'teacher' && userRole !== 'admin') {
             return res.status(403).json({ message: 'Only teachers or administrators can create courses.' });
         }
@@ -41,7 +35,7 @@ router.post('/create-with-extras', authenticateUser, courseFileUpload.single('fi
             if (!teacher) {
                 return res.status(403).json({ message: 'Teacher profile not found for this user.' });
             }
-            teacherId = teacher.id; // Use teacher's primary key (id)
+            teacherId = teacher.id; 
         }
 
         let studentIds = [];
@@ -58,11 +52,8 @@ router.post('/create-with-extras', authenticateUser, courseFileUpload.single('fi
         }
         console.log('Parsed Student IDs:', studentIds);
 
-        // Validate required fields
         if (!title || !description || studentIds.length === 0) {
-            // If a file was uploaded but validation fails, clean it up
             if (file) {
-                // Corrected path for cleanup
                 const filePath = path.join(__dirname, '..', 'uploads', 'course_files', file.filename);
                 fs.unlink(filePath, (err) => {
                     if (err) console.error('Error deleting uploaded file:', err);
@@ -70,8 +61,6 @@ router.post('/create-with-extras', authenticateUser, courseFileUpload.single('fi
             }
             return res.status(400).json({ message: 'Title, description, and at least one assigned student are required.' });
         }
-
-        // Prepare course data
         const courseData = {
             title,
             description,
@@ -80,13 +69,10 @@ router.post('/create-with-extras', authenticateUser, courseFileUpload.single('fi
         };
 
         if (file) {
-            // CRITICAL FIX 3: Correct the fileUrl path to match multerConfig's destination
             courseData.fileUrl = `/uploads/course_files/${file.filename}`;
         }
 
         const newCourse = await db.Course.create(courseData);
-
-        // Assign students using the Many-to-Many association
         if (studentIds.length > 0) {
             await newCourse.setStudents(studentIds);
         }
@@ -99,12 +85,12 @@ router.post('/create-with-extras', authenticateUser, courseFileUpload.single('fi
                     model: db.User,
                     attributes: ['firstName', 'lastName']
                 }],
-                attributes: ['id', 'enrollmentNumber', 'department', 'semester', 'batchYear', 'userId'] // Use 'id' for Student's primary key
+                attributes: ['id', 'enrollmentNumber', 'department', 'semester', 'batchYear', 'userId'] 
             }]
         });
 
         const formattedStudents = courseWithStudents.students.map(student => ({
-            id: student.id, // Use 'id' for Student's primary key
+            id: student.id,
             enrollmentNumber: student.enrollmentNumber,
             department: student.department,
             semester: student.semester,
@@ -124,9 +110,7 @@ router.post('/create-with-extras', authenticateUser, courseFileUpload.single('fi
         });
     } catch (error) {
         console.error('Error creating course:', error);
-        // If an error occurs after file upload but before DB operation, delete the file
         if (req.file) {
-            // Corrected path for cleanup
             const filePath = path.join(__dirname, '..', 'uploads', 'course_files', req.file.filename);
             fs.unlink(filePath, (err) => {
                 if (err) console.error('Error deleting uploaded file on error:', err);
@@ -136,7 +120,6 @@ router.post('/create-with-extras', authenticateUser, courseFileUpload.single('fi
     }
 });
 
-// Route to list courses based on user role
 router.get('/list', authenticateUser, async (req, res) => {
     try {
         const user = req.user;
@@ -148,7 +131,7 @@ router.get('/list', authenticateUser, async (req, res) => {
                 return res.status(403).json({ message: 'Teacher profile not found.' });
             }
             courses = await db.Course.findAll({
-                where: { teacherId: teacher.id }, // Use teacher's primary key (id)
+                where: { teacherId: teacher.id }, 
                 include: [{
                     model: db.Student,
                     as: 'students',
@@ -169,7 +152,7 @@ router.get('/list', authenticateUser, async (req, res) => {
                     model: db.Teacher,
                     as: 'teacher',
                     include: [{ model: db.User, attributes: ['firstName', 'lastName'] }],
-                    attributes: ['id', 'department', 'designation'] // Use 'id' for Teacher's primary key
+                    attributes: ['id', 'department', 'designation'] 
                 }]
             });
         } else if (user.role === 'admin') {
@@ -186,7 +169,7 @@ router.get('/list', authenticateUser, async (req, res) => {
                     model: db.Teacher,
                     as: 'teacher',
                     include: [{ model: db.User, attributes: ['firstName', 'lastName'] }],
-                    attributes: ['id', 'department', 'designation'] // Use 'id' for Teacher's primary key
+                    attributes: ['id', 'department', 'designation'] 
                 }]
             });
         } else {
@@ -199,7 +182,6 @@ router.get('/list', authenticateUser, async (req, res) => {
     }
 });
 
-// Route for a student to get their assigned courses (redundant with /list for students, can remove or keep for specific use)
 router.get('/my-courses', authenticateUser, authorizeRole(['student']), async (req, res) => {
     try {
         const user = req.user;
@@ -235,8 +217,6 @@ router.get('/my-courses', authenticateUser, authorizeRole(['student']), async (r
     }
 });
 
-
-// Route to get all students (for admin/teacher to assign)
 router.get('/students', authenticateUser, authorizeRole(['admin', 'teacher']), async (req, res) => {
     try {
         const students = await db.Student.findAll({
@@ -261,7 +241,7 @@ router.get('/students', authenticateUser, authorizeRole(['admin', 'teacher']), a
         }
 
         const formattedStudents = students.map(student => ({
-            id: student.id, // Use 'id' for Student's primary key
+            id: student.id, 
             enrollmentNumber: student.enrollmentNumber,
             department: student.department,
             semester: student.semester,
@@ -279,7 +259,6 @@ router.get('/students', authenticateUser, authorizeRole(['admin', 'teacher']), a
     }
 });
 
-// Route to get students enrolled in a specific course
 router.get('/:courseId/students', authenticateUser, async (req, res) => {
     try {
         const { courseId } = req.params;
@@ -291,7 +270,7 @@ router.get('/:courseId/students', authenticateUser, async (req, res) => {
         }
 
         const teacher = await db.Teacher.findOne({ where: { userId: user.id } });
-        const isTeacher = user.role === 'teacher' && teacher && course.teacherId === teacher.id; // Use teacher's primary key (id)
+        const isTeacher = user.role === 'teacher' && teacher && course.teacherId === teacher.id; 
         const isAdmin = user.role === 'admin';
         const currentStudentProfile = await db.Student.findOne({ where: { userId: user.id } });
         const isEnrolledStudent = user.role === 'student' && currentStudentProfile && (await course.hasStudent(currentStudentProfile));
@@ -306,11 +285,11 @@ router.get('/:courseId/students', authenticateUser, async (req, res) => {
                 model: db.User,
                 attributes: ['firstName', 'lastName']
             }],
-            attributes: ['id', 'enrollmentNumber', 'department', 'semester', 'batchYear', 'userId'] // Use 'id' for Student's primary key
+            attributes: ['id', 'enrollmentNumber', 'department', 'semester', 'batchYear', 'userId'] 
         });
 
         const formattedStudents = students.map(student => ({
-            id: student.id, // Use 'id' for Student's primary key
+            id: student.id, 
             enrollmentNumber: student.enrollmentNumber,
             department: student.department,
             semester: student.semester,
@@ -327,7 +306,6 @@ router.get('/:courseId/students', authenticateUser, async (req, res) => {
     }
 });
 
-// Route to update (assign/unassign) students for a course (Teacher/Admin only)
 router.put('/:courseId/students', authenticateUser, async (req, res) => {
     try {
         const { courseId } = req.params;
@@ -341,7 +319,7 @@ router.put('/:courseId/students', authenticateUser, async (req, res) => {
 
         const teacher = await db.Teacher.findOne({ where: { userId: user.id } });
 
-        if (!teacher || (course.teacherId !== teacher.id && user.role !== 'admin')) { // Use teacher's primary key (id)
+        if (!teacher || (course.teacherId !== teacher.id && user.role !== 'admin')) { 
             return res.status(403).json({ message: 'You do not have permission to update students for this course.' });
         }
 
@@ -361,11 +339,11 @@ router.put('/:courseId/students', authenticateUser, async (req, res) => {
                     model: db.User,
                     attributes: ['firstName', 'lastName']
                 },
-                attributes: ['id', 'enrollmentNumber', 'department', 'semester', 'batchYear', 'userId'] // Use 'id' for Student's primary key
+                attributes: ['id', 'enrollmentNumber', 'department', 'semester', 'batchYear', 'userId'] 
             }]
         });
         const formattedStudents = updatedCourse.students.map(student => ({
-            id: student.id, // Use 'id' for Student's primary key
+            id: student.id, 
             enrollmentNumber: student.enrollmentNumber,
             department: student.department,
             semester: student.semester,
@@ -388,7 +366,6 @@ router.put('/:courseId/students', authenticateUser, async (req, res) => {
     }
 });
 
-// Route to delete a course
 router.delete('/delete/:id', authenticateUser, async (req, res) => {
     try {
         const { id } = req.params;
@@ -402,17 +379,15 @@ router.delete('/delete/:id', authenticateUser, async (req, res) => {
 
         const teacher = await db.Teacher.findOne({ where: { userId: user.id } });
 
-        if (!teacher || (course.teacherId !== teacher.id && user.role !== 'admin')) { // Use teacher's primary key (id)
+        if (!teacher || (course.teacherId !== teacher.id && user.role !== 'admin')) {
             return res.status(403).json({ message: 'You do not have permission to delete this course.' });
         }
 
-        // Before deleting the course, if it has a fileUrl, delete the associated file
         if (course.fileUrl) {
-            const filePath = path.join(__dirname, '..', course.fileUrl); // e.g., 'backend/uploads/course_files/filename.ext'
+            const filePath = path.join(__dirname, '..', course.fileUrl);
             fs.unlink(filePath, (err) => {
                 if (err) {
                     console.error(`Error deleting course file ${filePath}:`, err);
-                    // Decide if you want to block deletion or just log the error
                 } else {
                     console.log(`Successfully deleted course file: ${filePath}`);
                 }
@@ -428,7 +403,6 @@ router.delete('/delete/:id', authenticateUser, async (req, res) => {
     }
 });
 
-// Route to remove a single student from a course (Teacher/Admin only)
 router.delete('/:courseId/students/:studentId', authenticateUser, async (req, res) => {
     try {
         const { courseId, studentId } = req.params;
@@ -446,7 +420,7 @@ router.delete('/:courseId/students/:studentId', authenticateUser, async (req, re
 
         const teacher = await db.Teacher.findOne({ where: { userId: user.id } });
 
-        if (!teacher || (course.teacherId !== teacher.id && user.role !== 'admin')) { // Use teacher's primary key (id)
+        if (!teacher || (course.teacherId !== teacher.id && user.role !== 'admin')) { 
             return res.status(403).json({ message: 'You do not have permission to remove students from this course.' });
         }
 
@@ -461,15 +435,15 @@ router.delete('/:courseId/students/:studentId', authenticateUser, async (req, re
 
 router.post(
     '/:courseId/resources/upload',
-    authenticateUser, // Authenticate the user
-    authorizeRole(['teacher']), // Ensure only teachers can upload resources
+    authenticateUser, 
+    authorizeRole(['teacher']), 
     (req, res, next) => {
         resourceUpload.single('resourceFile')(req, res, function (err) {
           if (err) {
             console.error("❌ Multer error:", err);
             return res.status(400).json({ message: 'Multer error', error: err.message });
           }
-          next(); // ✅ Proceed to controller
+          next(); 
         });
       },
     courseController.createCourseResource

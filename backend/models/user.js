@@ -1,6 +1,3 @@
-// backend/models/User.js
-// This file now exports a function that will define and return the User model.
-// This allows sequelize and DataTypes to be passed dynamically from index.js.
 
 module.exports = (sequelize, DataTypes) => {
     const User = sequelize.define('User', {

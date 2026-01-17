@@ -1,35 +1,23 @@
 {
   "development": {
-    "username": "lmsdb_owner",
-    "password": "npg_RfYBsbu50vNS",
+    "username": "postgres",
+    "password": "Mymonster@786",
     "database": "lmsdb",
-    "host": "ep-still-bar-a4xoapth-pooler.us-east-1.aws.neon.tech",
-    "dialect": "postgres",
-    "ssl": {
-      "require": true,
-      "rejectUnauthorized": false
-    }
+    "host": "127.0.0.1",
+    "dialect": "postgres"
   },
   "test": {
-    "username": "lmsdb_owner",
-    "password": "npg_RfYBsbu50vNS",
+    "username": "postgres",
+    "password": "Mymonster@786",
     "database": "lmsdb",
-    "host": "ep-still-bar-a4xoapth-pooler.us-east-1.aws.neon.tech",
-    "dialect": "postgres",
-    "ssl": {
-      "require": true,
-      "rejectUnauthorized": false
-    }
+    "host": "127.0.0.1",
+    "dialect": "postgres"
   },
   "production": {
-    "username": "lmsdb_owner",
-    "password": "npg_RfYBsbu50vNS",
+    "username": "postgres",
+    "password": "Mymonster@786",
     "database": "lmsdb",
-    "host": "ep-still-bar-a4xoapth-pooler.us-east-1.aws.neon.tech",
-    "dialect": "postgres",
-    "ssl": {
-      "require": true,
-      "rejectUnauthorized": false
-    }
+    "host": "127.0.0.1",
+    "dialect": "postgres"
   }
 }

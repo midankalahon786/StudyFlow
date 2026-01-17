@@ -6,12 +6,12 @@ const { PGDATABASE, PGUSER, PGPASSWORD, PGHOST } = process.env;
 const sequelize = new Sequelize(PGDATABASE, PGUSER, PGPASSWORD, {
     host: PGHOST,
     dialect: 'postgres',
-    dialectOptions: { // Uncomment if using SSL on your PostgreSQL server
-        ssl: {
-            require: true,
-            rejectUnauthorized: false
-        }
-    }
+    // dialectOptions: { // Uncomment if using SSL on your PostgreSQL server
+    //     ssl: {
+    //         require: true,
+    //         rejectUnauthorized: false
+    //     }
+    // }
 });
 
 
