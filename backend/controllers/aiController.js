@@ -38,7 +38,7 @@ exports.generateQuizQuestions = async (req, res) => {
             const model = genAI.getGenerativeModel({ model: modelName });
 
             const result = await model.generateContent(prompt);
-            const response = await result.response;
+            const response = result.response;
 
             let text = response.text();
             text = text.replace(/```json/g, "").replace(/```/g, "").trim();
