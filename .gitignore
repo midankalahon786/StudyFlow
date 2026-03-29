@@ -1,7 +1,67 @@
-node_modules/
-/backend/.env
-build/
-dist/
-migrations/
-uploads/
-seeders/
+# ===============================
+# Java & Maven
+# ===============================
+target/
+!.mvn/wrapper/maven-wrapper.jar
+*.class
+*.jar
+*.war
+*.ear
+*.zip
+*.tar.gz
+*.rar
+
+# ===============================
+# Environment & Secrets
+# ===============================
+# [cite: 2026-02-24]
+.env
+.env.local
+.env.*.local
+application-local.properties
+
+# ===============================
+# IDE Specific
+# ===============================
+# IntelliJ IDEA
+.idea/
+*.iws
+*.iml
+*.ipr
+out/
+
+# Visual Studio Code
+.vscode/
+*.code-workspace
+.history/
+
+# Eclipse
+.metadata
+.classpath
+.project
+.settings/
+bin/
+
+# ===============================
+# Python (for generate_log.py)
+# ===============================
+__pycache__/
+*.py[cod]
+*$py.class
+.venv
+venv/
+ENV/
+
+# ===============================
+# Operating System
+# ===============================
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ===============================
+# Logs & Temporary Files
+# ===============================
+*.log
+logs/
+temp/
