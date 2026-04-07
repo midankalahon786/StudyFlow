@@ -1,9 +1,9 @@
 # StudyFlow Development History
-
-**Last Updated:** 2026-03-28 22:37:39
+**Last Updated:** 2026-04-07 19:31:39
 
 | Date | Change Description |
 | :--- | :--- |
+| 2026-03-29 | Added User Auth Security Classes and DB Schema |
 | 2026-03-28 | Cleanup: Removed legacy Node.js files and isolated Spring Boot Modular Monolith |
 | 2026-02-12 | Reduced cognitive complexity and implemented Redis |
 | 2026-02-10 | Optimized dockerfile |

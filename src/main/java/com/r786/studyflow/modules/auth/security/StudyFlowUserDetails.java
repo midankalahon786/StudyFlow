@@ -17,7 +17,7 @@ public class StudyFlowUserDetails implements UserDetails {
     private final boolean active;
     private final Collection<? extends GrantedAuthority> authorities;
 
-    private StudyFlowUserDetails(User user){
+    public StudyFlowUserDetails(User user){
         this.id = user.getId();
         this.username = user.getUsername();
         this.password = user.getPassword();
