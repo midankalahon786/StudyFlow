@@ -1,8 +1,9 @@
 # StudyFlow Development History
-**Last Updated:** 2026-04-09 14:14:22
+**Last Updated:** 2026-04-09 14:51:19
 
 | Date | Change Description |
 | :--- | :--- |
+| 2026-04-09 | Organized API documentation into logical service groups (Auth, Course, Quiz) for better modularity. |
 | 2026-04-09 | Verified automatic table generation and successful application startup on port 8080. |
 | 2026-04-09 | Implemented missing Course, Student, and Teacher repositories to support enrollment logic |
 | 2026-04-07 | Added auth module with config and filtering token |
