@@ -32,6 +32,9 @@ public class CourseResource {
     @Column(nullable = false)
     private String fileName;
 
+    @Column(nullable = false)
+    private String filePath;
+
     private String fileMimeType;
     private Long fileSize;
 
