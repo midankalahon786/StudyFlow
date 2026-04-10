@@ -21,7 +21,7 @@ public class CourseResource {
     private Course course;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name="course_id",nullable = false)
+    @JoinColumn(name="teacher_id",nullable = false)
     private Teacher teacher;
 
     @Column(nullable = false)

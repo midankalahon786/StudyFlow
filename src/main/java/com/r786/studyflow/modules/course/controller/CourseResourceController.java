@@ -19,10 +19,11 @@ public class CourseResourceController {
     @PostMapping(value="/upload", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<?> uploadFile(
             @RequestParam("courseId") Long courseId,
+            @RequestParam("teacherId") Long teacherId,
             @RequestParam("title") String title,
             @RequestParam("description") String description,
-            @RequestParam("file")MultipartFile file
-            ){
-        return ResponseEntity.ok(resourceService.uploadResource(courseId,title,description,file));
+            @RequestParam("file") MultipartFile file
+    ){
+        return ResponseEntity.ok(resourceService.uploadResource(courseId, teacherId, title, description, file));
     }
 }

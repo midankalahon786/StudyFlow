@@ -18,24 +18,23 @@ public class EnrollmentService {
 
     @Transactional
     public void enrollStudent(Long courseId, Long studentId){
-        var course = courseRepository.findById(courseId)
+        var course = courseRepository.findByIdWithLock(courseId)
                 .orElseThrow(()->new RuntimeException("Course not found"));
 
         var student = studentRepository.findById(studentId)
                 .orElseThrow(()-> new RuntimeException("Student not found"));
 
-        if(enrollmentRepository.existsByCourseIdAndStudentId(courseId,studentId)){
-            throw new IllegalStateException("Student is already enrolled in this course");
+        if(enrollmentRepository.existsByCourseIdAndStudentId(courseId, studentId)){
+            throw new IllegalStateException("Student is already enrolled");
         }
 
-        var enrollment = CourseStudent.builder()
+        enrollmentRepository.save(CourseStudent.builder()
                 .course(course)
                 .student(student)
-                .isEnrolled(true)
-                .build();
-        enrollmentRepository.save(enrollment);
+                .build());
 
-        course.setNoOfStudentsEnrolled(course.getNoOfStudentsEnrolled()+1);
+        // Safe increment due to PESSIMISTIC_WRITE lock
+        course.setNoOfStudentsEnrolled(course.getNoOfStudentsEnrolled() + 1);
         courseRepository.save(course);
     }
 }

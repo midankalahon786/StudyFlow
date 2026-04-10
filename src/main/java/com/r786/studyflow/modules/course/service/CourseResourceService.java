@@ -1,6 +1,7 @@
 package com.r786.studyflow.modules.course.service;
 
 import com.r786.studyflow.core.service.FileStorageService;
+import com.r786.studyflow.modules.auth.repository.TeacherRepository;
 import com.r786.studyflow.modules.course.entity.CourseResource;
 import com.r786.studyflow.modules.course.repository.CourseRepository;
 import com.r786.studyflow.modules.course.repository.CourseResourceRepository;
@@ -13,17 +14,28 @@ import org.springframework.web.multipart.MultipartFile;
 public class CourseResourceService {
     private final CourseResourceRepository resourceRepository;
     private final CourseRepository courseRepository;
+    private final TeacherRepository teacherRepository;
     private final FileStorageService fileStorageService;
 
-    public CourseResource uploadResource(Long courseId, String title, String description, MultipartFile file) {
+    public CourseResource uploadResource(Long courseId,Long uploaderTeacherId, String title, String description, MultipartFile file) {
         var course = courseRepository.findById(courseId)
                 .orElseThrow(() -> new RuntimeException("Course not found"));
+
+        var uploader = teacherRepository.findById(uploaderTeacherId)
+                .orElseThrow(() -> new RuntimeException("Teacher not found"));
+
+        boolean isAuthorized = course.getManager().getId().equals(uploaderTeacherId) ||
+                course.getAssociatedTeachers().contains(uploader);
+
+        if (!isAuthorized) {
+            throw new RuntimeException("Access Denied: You are not authorized to add resources to this course");
+        }
 
         String filePath = fileStorageService.storeFile(file, "courses/" + courseId);
 
         var resource = CourseResource.builder()
                 .course(course)
-                .teacher(course.getTeacher())
+                .teacher(uploader)
                 .title(title)
                 .description(description)
                 .fileName(file.getOriginalFilename())

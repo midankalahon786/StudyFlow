@@ -3,6 +3,7 @@ package com.r786.studyflow.modules.auth.service;
 import com.r786.studyflow.modules.auth.dto.AuthenticationRequest;
 import com.r786.studyflow.modules.auth.dto.AuthenticationResponse;
 import com.r786.studyflow.modules.auth.dto.RegisterRequest;
+import com.r786.studyflow.modules.auth.dto.UserResponse;
 import com.r786.studyflow.modules.auth.entity.User;
 import com.r786.studyflow.modules.auth.repository.UserRepository;
 import com.r786.studyflow.modules.auth.security.JwtService;
@@ -13,6 +14,8 @@ import org.springframework.security.authentication.UsernamePasswordAuthenticatio
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+
+import java.util.List;
 
 @Service
 @RequiredArgsConstructor
@@ -41,6 +44,19 @@ public class AuthService {
 
         return new AuthenticationResponse(jwtToken, refreshToken);
     }
+
+    public List<UserResponse> getAllUsers() {
+        return userRepository.findAll()
+                .stream()
+                .map(user -> UserResponse.builder()
+                        .id(Math.toIntExact(user.getId()))
+                        .username(user.getUsername())
+                        .email(user.getEmail())
+                        .role(user.getRole())
+                        .build())
+                .toList();
+    }
+
     public AuthenticationResponse authenticate(AuthenticationRequest request){
         authenticationManager.authenticate(
                 new UsernamePasswordAuthenticationToken(request.username(), request.password())
