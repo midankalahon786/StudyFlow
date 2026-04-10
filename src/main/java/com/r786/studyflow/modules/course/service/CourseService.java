@@ -1,9 +1,11 @@
 package com.r786.studyflow.modules.course.service;
 
-import com.r786.studyflow.modules.auth.entity.Teacher;
+import com.r786.studyflow.core.exceptions.GlobalExceptionHandler;
+import com.r786.studyflow.modules.auth.repository.TeacherRepository;
+import com.r786.studyflow.modules.course.dto.CourseRequest;
 import com.r786.studyflow.modules.course.entity.Course;
 import com.r786.studyflow.modules.course.repository.CourseRepository;
-import jakarta.transaction.Transactional;
+import org.springframework.transaction.annotation.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -11,42 +13,60 @@ import org.springframework.stereotype.Service;
 @RequiredArgsConstructor
 public class CourseService {
     private final CourseRepository courseRepository;
+    private final TeacherRepository teacherRepository;
 
     @Transactional
-    public Course createCourse(String title, String description, Teacher manager) {
+    public Course createCourse(CourseRequest request, Long managerId) {
+        var manager = teacherRepository.findById(managerId)
+                .orElseThrow(() -> new GlobalExceptionHandler.ResourceNotFoundException("Teacher not found"));
+
         return courseRepository.save(Course.builder()
-                .title(title)
-                .description(description)
+                .title(request.title()) // Record syntax
+                .description(request.description())
+                .department(request.department())
                 .manager(manager)
                 .build());
     }
 
-    public Course getCourseDetails(Long courseId, Long requesterTeacherId) {
-        Course course = courseRepository.findById(courseId)
-                .orElseThrow(() -> new RuntimeException("Course not found"));
+    @Transactional(readOnly = true)
+    public Course getCourseDetails(Long courseId, Long requesterId) {
+        var course = courseRepository.findById(courseId)
+                .orElseThrow(() -> new GlobalExceptionHandler.ResourceNotFoundException("Course not found"));
 
-        // Check if requester is manager or staff
-        boolean isStaff = course.getManager().getId().equals(requesterTeacherId) ||
+        boolean isStaff = course.getManager().getId().equals(requesterId) ||
                 course.getAssociatedTeachers().stream()
-                        .anyMatch(t -> t.getId().equals(requesterTeacherId));
+                        .anyMatch(t -> t.getId().equals(requesterId));
 
         if (!isStaff) {
-            throw new RuntimeException("Access Denied: You do not have permission to view this course's content");
+            throw new IllegalStateException("Access Denied: You are not authorized staff");
         }
-
         return course;
     }
 
     @Transactional
-    public void addAssociatedTeacher(Long courseId, Teacher associate, Long managerId) {
-        Course course = courseRepository.findById(courseId)
-                .orElseThrow(() -> new RuntimeException("Course not found"));
+    public void addAssociatedTeacher(Long courseId, Long associateId, Long managerId) {
+        var course = courseRepository.findById(courseId)
+                .orElseThrow(() -> new GlobalExceptionHandler.ResourceNotFoundException("Course not found"));
 
-        // Security check: Only the manager can add co-teachers
         if (!course.getManager().getId().equals(managerId)) {
-            throw new RuntimeException("Access Denied: Only the manager can add staff");
+            throw new IllegalStateException("Access Denied: Only the manager can add staff");
         }
 
+        var associate = teacherRepository.findById(associateId)
+                .orElseThrow(() -> new GlobalExceptionHandler.ResourceNotFoundException("Associate teacher not found"));
+
         course.getAssociatedTeachers().add(associate);
+    }
+
+    @Transactional
+    public Course updateCourse(Long courseId, CourseRequest request) {
+        var course = courseRepository.findById(courseId)
+                .orElseThrow(() -> new GlobalExceptionHandler.ResourceNotFoundException("Course not found"));
+
+        course.setTitle(request.title());
+        course.setDescription(request.description());
+        course.setDepartment(request.department());
+
+        return courseRepository.save(course);
     }
 }

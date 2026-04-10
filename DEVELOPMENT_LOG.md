@@ -1,8 +1,11 @@
 # StudyFlow Development History
-**Last Updated:** 2026-04-09 19:54:35
+**Last Updated:** 2026-04-10 22:42:31
 
 | Date | Change Description |
 | :--- | :--- |
+| 2026-04-10 | Added quiz module |
+| 2026-04-10 | Added discussion module |
+| 2026-04-09 | Course-Management-Service |
 | 2026-04-09 | Defined CourseResource entity and established secure file upload strategy for StudyFlow |
 | 2026-04-09 | Organized API documentation into logical service groups (Auth, Course, Quiz) for better modularity. |
 | 2026-04-09 | Verified automatic table generation and successful application startup on port 8080. |

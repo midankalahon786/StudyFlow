@@ -26,26 +26,33 @@ public class FileStorageService {
         }
     }
 
-    public String storeFile(MultipartFile file, String subFolder){
+    public String storeFile(MultipartFile file, String subFolder) {
         String originalFileName = StringUtils.cleanPath(Objects.requireNonNull(file.getOriginalFilename()));
+        String fileExtension = originalFileName.contains(".") ?
+                originalFileName.substring(originalFileName.lastIndexOf(".")) : "";
 
-        String fileExtension = "";
-        if(originalFileName.contains(".")){
-            fileExtension = originalFileName.substring(originalFileName.lastIndexOf("."));
-        }
         String fileName = UUID.randomUUID() + fileExtension;
 
-        try{
+        try {
             Path targetLocation = this.fileStorageLocation.resolve(subFolder).resolve(fileName).normalize();
-            if(!targetLocation.startsWith(this.fileStorageLocation)){
+
+            // Security check
+            if (!targetLocation.startsWith(this.fileStorageLocation)) {
                 throw new RuntimeException("Cannot store file outside of current directory.");
             }
-            Files.createDirectories(targetLocation.getParent());
-            Files.copy(file.getInputStream(),targetLocation, StandardCopyOption.REPLACE_EXISTING);
 
-            return targetLocation.toString();
-        }catch (IOException ex){
-            throw new RuntimeException("Could not store file" + fileName + ". Please try again!",ex);
+            Files.createDirectories(targetLocation.getParent());
+            Files.copy(file.getInputStream(), targetLocation, StandardCopyOption.REPLACE_EXISTING);
+
+            // RETURN RELATIVE PATH: e.g., "courses/1/uuid.pdf"
+            return this.fileStorageLocation.relativize(targetLocation).toString();
+
+        } catch (IOException ex) {
+            throw new RuntimeException("Could not store file " + fileName, ex);
         }
+    }
+
+    public Path loadFile(String relativePath) {
+        return this.fileStorageLocation.resolve(relativePath).normalize();
     }
 }

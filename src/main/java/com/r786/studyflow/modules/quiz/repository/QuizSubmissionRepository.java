@@ -11,6 +11,8 @@ import java.util.Optional;
 @Repository
 public interface QuizSubmissionRepository extends JpaRepository<QuizSubmission, Long> {
 
+    long countByQuizId(Long quizId);
+
     // Find all attempts by a specific student
     List<QuizSubmission> findByStudentId(Long studentId);
 

@@ -63,4 +63,12 @@ public class OpenApiConfig {
                 .pathsToMatch("/api/v1/discussion/**")
                 .build();
     }
+
+    @Bean
+    public GroupedOpenApi analyticsApi(){
+        return GroupedOpenApi.builder()
+                .group("5-Analytics-Service")
+                .pathsToMatch("/api/v1/analytics/**")
+                .build();
+    }
 }

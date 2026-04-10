@@ -40,4 +40,10 @@ public class QuizController {
             @RequestBody Map<Long, Long> answers) {
         return ResponseEntity.ok(quizService.submitQuiz(id, studentId, answers));
     }
+
+    @Operation(summary = "Update quiz structure", description = "Updates quiz metadata and the entire question bank.")
+    @PutMapping("/{id}")
+    public ResponseEntity<Quiz> updateQuiz(@PathVariable Long id, @RequestBody QuizRequest request) {
+        return ResponseEntity.ok(quizService.updateQuiz(id, request));
+    }
 }
