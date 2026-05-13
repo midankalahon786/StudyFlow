@@ -1,10 +1,13 @@
 package com.r786.studyflow.modules.course.controller;
 
+import com.r786.studyflow.modules.auth.entity.User;
 import com.r786.studyflow.modules.course.service.EnrollmentService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -21,9 +24,12 @@ public class EnrollmentController {
 
     @Operation(summary = "Enroll a student in a course", description = "Requires a valid courseId and studentId. Uses Pessimistic Locking to ensure capacity limits.")
     @PostMapping("/enroll")
-    public ResponseEntity<?> enrollStudent(@RequestBody EnrollmentRequest request){
-        enrollmentService.enrollStudent(request.courseId(), request.studentId());
-        return ResponseEntity.ok(Map.of("message","Student enrolled successfully"));
+    @PreAuthorize("hasRole('STUDENT')") // Ensure only students can call this
+    public ResponseEntity<?> enrollStudent(
+            @RequestBody EnrollmentRequest request,
+            @AuthenticationPrincipal User user) { // Derives ID from token
+        enrollmentService.enrollStudent(request.courseId(), user.getId());
+        return ResponseEntity.ok(Map.of("message", "Enrolled successfully"));
     }
 
     public record EnrollmentRequest(Long courseId, Long studentId) {}

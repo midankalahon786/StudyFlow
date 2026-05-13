@@ -27,7 +27,15 @@ public class JwtService {
     private long refreshExpiration;
 
     public String generateToken(UserDetails userDetails) {
-        return buildToken(new HashMap<>(), userDetails, jwtExpiration);
+        Map<String, Object> extraClaims = new HashMap<>();
+
+        // Extract the role. Assuming your authorities contain "ROLE_STUDENT" or "ROLE_TEACHER"
+        if (!userDetails.getAuthorities().isEmpty()) {
+            String role = userDetails.getAuthorities().iterator().next().getAuthority();
+            extraClaims.put("role", role);
+        }
+
+        return buildToken(extraClaims, userDetails, jwtExpiration);
     }
 
     public String generateRefreshToken(UserDetails userDetails) {

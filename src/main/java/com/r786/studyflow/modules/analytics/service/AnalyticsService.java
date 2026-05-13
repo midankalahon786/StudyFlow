@@ -12,6 +12,7 @@ import com.r786.studyflow.modules.course.repository.CourseStudentRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.data.domain.PageRequest;
 
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -80,7 +81,10 @@ public class AnalyticsService {
                         }
                 ));
 
-        // 4. Calculate Overall Completion Rate
+        // 4. FIX: Fetch Top 5 Performers using the new repository query
+        var topPerformers = submissionRepository.findTopPerformersByCourseId(courseId, PageRequest.of(0, 5));
+
+        // 5. Calculate Overall Completion Rate
         long totalActualSubmissions = quizzes.stream()
                 .mapToLong(q -> submissionRepository.countByQuizId(q.getId()))
                 .sum();
@@ -90,10 +94,11 @@ public class AnalyticsService {
                 ? (totalActualSubmissions / potentialSubmissions) * 100
                 : 0.0;
 
+        // 6. Return the full response
         return new TeacherAnalyticsResponse(
                 studentCount,
                 averages,
-                null, // Top performers can be added later as a secondary feature
+                topPerformers, // Replaced null with the actual list
                 Math.round(completionRate * 100.0) / 100.0
         );
     }

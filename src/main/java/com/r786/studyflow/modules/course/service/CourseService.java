@@ -20,6 +20,10 @@ public class CourseService {
         var manager = teacherRepository.findById(managerId)
                 .orElseThrow(() -> new GlobalExceptionHandler.ResourceNotFoundException("Teacher not found"));
 
+        if (manager.getUser().getFirstName() == null) {
+            throw new IllegalStateException("Please complete your profile details before creating a course.");
+        }
+
         return courseRepository.save(Course.builder()
                 .title(request.title()) // Record syntax
                 .description(request.description())

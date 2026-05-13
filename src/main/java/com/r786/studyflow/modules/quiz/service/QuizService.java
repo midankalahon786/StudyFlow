@@ -12,8 +12,10 @@ import com.r786.studyflow.modules.quiz.repository.ChoiceRepository;
 import com.r786.studyflow.modules.quiz.repository.QuizRepository;
 import com.r786.studyflow.modules.quiz.repository.QuizSubmissionRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -33,6 +35,9 @@ public class QuizService {
     @Transactional
     public QuizSubmission submitQuiz(Long quizId, Long studentId, Map<Long, Long> answers) {
         // 1. Fetch dependencies
+        if (submissionRepository.existsByQuizIdAndStudentId(quizId, studentId)) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Quiz already submitted.");
+        }
         var quiz = quizRepository.findById(quizId)
                 .orElseThrow(() -> new NoSuchElementException("Quiz not found"));
 

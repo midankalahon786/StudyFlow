@@ -1,13 +1,7 @@
 package com.r786.studyflow.core.config;
 
-// Ensure you import your UserRepository
 import com.r786.studyflow.modules.auth.repository.UserRepository;
-import com.r786.studyflow.modules.auth.security.StudyFlowUserDetails;
-import io.swagger.v3.oas.models.Components;
-import io.swagger.v3.oas.models.OpenAPI;
-import io.swagger.v3.oas.models.info.Info;
-import io.swagger.v3.oas.models.security.SecurityRequirement;
-import io.swagger.v3.oas.models.security.SecurityScheme;
+// Remove the StudyFlowUserDetails import if it's no longer used
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -24,7 +18,6 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 @RequiredArgsConstructor
 public class ApplicationConfig {
 
-    // 1. ADD THIS: Inject the repository so the Lamba can see it
     private final UserRepository userRepository;
 
     @Bean
@@ -40,16 +33,15 @@ public class ApplicationConfig {
     @Bean
     public UserDetailsService userDetailsService() {
         return username -> userRepository.findByUsername(username)
-                .map(StudyFlowUserDetails::new)
-                .orElseThrow(() -> new UsernameNotFoundException("User not found: " + username));
+                .orElseThrow(() -> new UsernameNotFoundException("User not found"));
+        // NO .map(...) here! Return the entity directly.
     }
 
     @Bean
     public AuthenticationProvider authenticationProvider() {
-        // 2. FIX DEPRECATION: Use the constructor instead of the setter
-        DaoAuthenticationProvider authProvider = new DaoAuthenticationProvider(passwordEncoder());
+        DaoAuthenticationProvider authProvider = new DaoAuthenticationProvider();
         authProvider.setUserDetailsService(userDetailsService());
+        authProvider.setPasswordEncoder(passwordEncoder());
         return authProvider;
     }
-
 }

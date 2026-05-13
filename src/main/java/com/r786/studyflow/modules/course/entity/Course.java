@@ -33,10 +33,10 @@ public class Course {
     private Teacher manager;
 
     // 2. Added Associated Teachers relationship
+    @Builder.Default // <--- IMPORTANT: Tells Lombok Builder to use this default value
     @ManyToMany
     @JoinTable(
-            name = "course_associated_teachers",
-            schema = "courses",
+            name = "course_teachers",
             joinColumns = @JoinColumn(name = "course_id"),
             inverseJoinColumns = @JoinColumn(name = "teacher_id")
     )

@@ -17,12 +17,19 @@ public class StudyFlowUserDetails implements UserDetails {
     private final boolean active;
     private final Collection<? extends GrantedAuthority> authorities;
 
-    public StudyFlowUserDetails(User user){
+    public StudyFlowUserDetails(User user) {
         this.id = user.getId();
         this.username = user.getUsername();
         this.password = user.getPassword();
         this.active = user.isActive();
-        this.authorities = List.of(new SimpleGrantedAuthority("ROLE_"+user.getRole().name()));
+
+        // Check if role is null before calling .name()
+        if (user.getRole() != null) {
+            this.authorities = List.of(new SimpleGrantedAuthority("ROLE_" + user.getRole().name()));
+        } else {
+            // Assign no authorities or a default "ROLE_NONE" for unprofiled users
+            this.authorities = List.of();
+        }
     }
 
     @Override

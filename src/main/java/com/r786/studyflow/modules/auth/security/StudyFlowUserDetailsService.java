@@ -1,6 +1,5 @@
 package com.r786.studyflow.modules.auth.security;
 
-import com.r786.studyflow.modules.auth.entity.User;
 import com.r786.studyflow.modules.auth.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
@@ -17,10 +16,10 @@ public class StudyFlowUserDetailsService implements UserDetailsService {
 
     @Override
     @Transactional(readOnly=true)
-    public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException{
-     User user = userRepository.findByUsername(username)
-             .orElseThrow(() -> new UsernameNotFoundException("User not found with username"+username));
-
-     return new StudyFlowUserDetails(user);
+    public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
+        // DO NOT wrap this in StudyFlowUserDetails.
+        // Return the 'User' entity directly.
+        return userRepository.findByUsername(username)
+                .orElseThrow(() -> new UsernameNotFoundException("User not found: " + username));
     }
 }

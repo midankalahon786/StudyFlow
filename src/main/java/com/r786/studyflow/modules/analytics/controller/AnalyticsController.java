@@ -3,10 +3,13 @@ package com.r786.studyflow.modules.analytics.controller;
 import com.r786.studyflow.modules.analytics.dto.StudentPerformanceResponse;
 import com.r786.studyflow.modules.analytics.dto.TeacherAnalyticsResponse;
 import com.r786.studyflow.modules.analytics.service.AnalyticsService;
+import com.r786.studyflow.modules.auth.entity.User;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -24,12 +27,15 @@ public class AnalyticsController {
         return ResponseEntity.ok(analyticsService.getStudentPerformance(studentId));
     }
 
-    @Operation(summary = "Get course performance for teachers",
-            description = "Returns class averages and enrollment metrics. Requires teacher authorization.")
+    @PreAuthorize("hasRole('TEACHER')")
     @GetMapping("/course/{courseId}")
-    public ResponseEntity<TeacherAnalyticsResponse> getCourseReport(
+    @Operation(summary = "Get teacher dashboard data", description = "Returns averages and top performers")
+    public ResponseEntity<TeacherAnalyticsResponse> getCourseAnalytics(
             @PathVariable Long courseId,
-            @RequestParam Long teacherId) {
-        return ResponseEntity.ok(analyticsService.getCourseAnalytics(courseId, teacherId));
+            @AuthenticationPrincipal User user) {
+
+        // Extract the ID from the authenticated user.
+        // Due to @MapsId, this is the same as the Teacher ID.
+        return ResponseEntity.ok(analyticsService.getCourseAnalytics(courseId, user.getId()));
     }
 }

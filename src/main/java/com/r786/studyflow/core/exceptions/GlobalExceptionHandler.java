@@ -6,8 +6,11 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.ControllerAdvice;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.ResponseStatus;
+import org.springframework.web.server.ResponseStatusException;
 
+import java.time.LocalDateTime;
 import java.util.Map;
+import java.util.NoSuchElementException;
 
 @ControllerAdvice
 public class GlobalExceptionHandler {
@@ -46,6 +49,29 @@ public class GlobalExceptionHandler {
     public ResponseEntity<?> handleNotFound(ResourceNotFoundException ex){
         return ResponseEntity.status(HttpStatus.NOT_FOUND)
                 .body(Map.of("error", ex.getMessage()));
+    }
+
+    @ExceptionHandler(NoSuchElementException.class)
+    public ResponseEntity<ApiError> handleNoSuchElement(NoSuchElementException ex) {
+        ApiError error = ApiError.builder()
+                .status(HttpStatus.NOT_FOUND.value())
+                .message(ex.getMessage())
+                .timestamp(LocalDateTime.now())
+                .build();
+
+        return new ResponseEntity<>(error, HttpStatus.NOT_FOUND);
+    }
+
+    // Optional: Handle the Duplicate Submission (409 Conflict)
+    @ExceptionHandler(ResponseStatusException.class)
+    public ResponseEntity<ApiError> handleResponseStatus(ResponseStatusException ex) {
+        ApiError error = ApiError.builder()
+                .status(ex.getStatusCode().value())
+                .message(ex.getReason())
+                .timestamp(LocalDateTime.now())
+                .build();
+
+        return new ResponseEntity<>(error, ex.getStatusCode());
     }
 
 }

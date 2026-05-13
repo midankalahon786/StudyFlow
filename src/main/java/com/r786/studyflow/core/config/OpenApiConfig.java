@@ -21,7 +21,7 @@ public class OpenApiConfig {
                         .title("StudyFlow LMS API")
                         .version("1.0")
                         .description("Comprehensive API for course management, automated quizzes, and student analytics.")
-                        .contact(new Contact().name("Midanka Lahon").email("midanka@example.com")))
+                        .contact(new Contact().name("Midanka Lahon").email("midankalahon@gmail.com")))
                 .addSecurityItem(new SecurityRequirement().addList(securitySchemeName))
                 .components(new Components()
                         .addSecuritySchemes(securitySchemeName,
